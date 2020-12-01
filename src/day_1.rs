@@ -24,10 +24,10 @@ pub fn run() -> Result<(), &'static str> {
 }
 
 fn string_to_digits(s: &str) -> Vec<isize> {
-    s.split("\n").filter_map(|v| v.parse().ok()).collect()
+    s.split('\n').filter_map(|v| v.parse().ok()).collect()
 }
 
-fn sum_match(nums: &Vec<isize>, element_count: usize, target: isize) -> Option<Vec<&isize>> {
+fn sum_match(nums: &[isize], element_count: usize, target: isize) -> Option<Vec<&isize>> {
     nums.iter()
         .combinations(element_count)
         .filter_map(|i| {
@@ -43,7 +43,7 @@ fn sum_match(nums: &Vec<isize>, element_count: usize, target: isize) -> Option<V
         .next()
 }
 
-fn product_of_vec(v: &Vec<&isize>) -> isize {
+fn product_of_vec(v: &[&isize]) -> isize {
     v.iter().fold(1isize, |acc, next| acc * *next)
 }
 
