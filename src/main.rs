@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     match get_number("day", Some(0), &matches) {
         1 => day_1::run()?,
 
-        other => Err(format!("Invalid day: {}", other))?,
+        other => return Err(format!("Invalid day: {}", other).into()),
     }
     Ok(())
 }
