@@ -7,7 +7,8 @@ use std::str::FromStr;
 use clap::{App, Arg, ArgMatches};
 use std::error::Error;
 
-use aoc_2020::day_1;
+use aoc_2020::day_01;
+use aoc_2020::day_02;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Advent of Code 2017")
@@ -22,7 +23,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .get_matches();
     match get_number("day", Some(0), &matches) {
-        1 => day_1::run()?,
+        1 => day_01::run()?,
+        2 => day_02::run()?,
 
         other => return Err(format!("Invalid day: {}", other).into()),
     }

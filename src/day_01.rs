@@ -1,6 +1,6 @@
 use itertools::*;
 
-const DAY_1_INPUT: &str = include_str!("../data/day_1_input");
+const DAY_1_INPUT: &str = include_str!("../data/day_01_input");
 
 const TARGET: isize = 2020;
 
