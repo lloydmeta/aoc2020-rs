@@ -13,9 +13,9 @@ use aoc_2020::day_02;
 use aoc_2020::day_03;
 
 fn main() -> Result<()> {
-    let matches = App::new("Advent of Code 2017")
+    let matches = App::new("Advent of Code 2020")
         .version(version().as_str())
-        .about("Solutions to AoC 2017 !")
+        .about("Solutions to AoC 2020 !")
         .arg(
             Arg::with_name("day")
                 .required(true)
