@@ -2,14 +2,14 @@ use itertools::*;
 
 use anyhow::Result;
 
-const DAY_1_INPUT: &str = include_str!("../data/day_01_input");
+const INPUT: &str = include_str!("../data/day_01_input");
 
 const TARGET: isize = 2020;
 
 pub fn run() -> Result<()> {
     println!("*** Day 1: Report Repair ***");
-    println!("Input: {}", DAY_1_INPUT);
-    let nums = string_to_digits(DAY_1_INPUT);
+    println!("Input: {}", INPUT);
+    let nums = string_to_digits(INPUT);
     let sum_match_2020_2 = sum_match(&nums, 2, TARGET);
     let products_of_match_2020_2 = sum_match_2020_2.as_ref().map(|v| product_of_vec(v));
     println!(

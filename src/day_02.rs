@@ -4,12 +4,12 @@ use combine::parser::char::*;
 use combine::*;
 use std::result::Result as StdResult;
 
-const DAY_2_INPUT: &str = include_str!("../data/day_02_input");
+const INPUT: &str = include_str!("../data/day_02_input");
 
 pub fn run() -> Result<()> {
     println!("*** Day 2: Password Philosophy ***");
-    println!("Input: {}", DAY_2_INPUT);
-    let policies_with_passwords = parse_input(DAY_2_INPUT)?;
+    println!("Input: {}", INPUT);
+    let policies_with_passwords = parse_input(INPUT)?;
     let valid_passwords_1 = find_valid_passwords_1(&policies_with_passwords);
     println!("Number of valid passwords 1: {}", valid_passwords_1.len());
     let valid_passwords_2 = find_valid_passwords_2(&policies_with_passwords);
