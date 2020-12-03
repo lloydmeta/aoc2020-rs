@@ -1,10 +1,12 @@
+use anyhow::Result;
+use combine::easy::ParseError;
 use combine::parser::char::*;
 use combine::*;
-use std::error::Error as StdErr;
+use std::result::Result as StdResult;
 
 const DAY_2_INPUT: &str = include_str!("../data/day_02_input");
 
-pub fn run() -> Result<(), Box<dyn StdErr>> {
+pub fn run() -> Result<()> {
     println!("*** Day 2: Password Philosophy ***");
     println!("Input: {}", DAY_2_INPUT);
     let policies_with_passwords = parse_input(DAY_2_INPUT)?;
@@ -82,32 +84,27 @@ fn find_valid_passwords_2(v: &[PasswordPolicyWithPassword]) -> Vec<&Password> {
         .collect()
 }
 
-fn parse_input(s: &str) -> Result<Vec<PasswordPolicyWithPassword>, Box<dyn StdErr + '_>> {
+fn parse_input(s: &str) -> StdResult<Vec<PasswordPolicyWithPassword>, ParseError<&str>> {
     let policy_parser = many::<String, _, _>(digit())
+        .and_then(|s| s.parse::<usize>())
         .skip(char('-'))
-        .and(many::<String, _, _>(digit()))
+        .and(many::<String, _, _>(digit()).and_then(|s| s.parse::<usize>()))
         .skip(space())
         .and(letter())
-        .map(|((lower_bound_s, upper_bound_s), target)| {
-            let i = lower_bound_s.parse().expect("number");
-            let j = upper_bound_s.parse().expect("number");
-            PasswordPolicy {
-                i,
-                j,
-                letter: target,
-            }
+        .map(|((i, j), target)| PasswordPolicy {
+            i,
+            j,
+            letter: target,
         });
 
     let policy_with_password_parser = policy_parser
         .skip(char(':'))
         .skip(spaces())
-        .and(many::<String, _, _>(letter()))
-        .map(|(policy, password)| PasswordPolicyWithPassword {
-            policy,
-            password: Password(password),
-        });
-    let mut parser = sep_by(policy_with_password_parser, spaces());
-    let (r, _) = parser.easy_parse(s.trim())?;
+        .and(many::<String, _, _>(letter()).map(Password))
+        .map(|(policy, password)| PasswordPolicyWithPassword { policy, password });
+
+    let mut parser = many(policy_with_password_parser.skip(spaces()));
+    let (r, _) = parser.easy_parse(s)?;
     Ok(r)
 }
 

@@ -1,10 +1,12 @@
 use itertools::*;
 
+use anyhow::Result;
+
 const DAY_1_INPUT: &str = include_str!("../data/day_01_input");
 
 const TARGET: isize = 2020;
 
-pub fn run() -> Result<(), &'static str> {
+pub fn run() -> Result<()> {
     println!("*** Day 1: Report Repair ***");
     println!("Input: {}", DAY_1_INPUT);
     let nums = string_to_digits(DAY_1_INPUT);
