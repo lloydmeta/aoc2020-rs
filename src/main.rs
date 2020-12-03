@@ -1,16 +1,17 @@
+extern crate anyhow;
 extern crate aoc_2020;
 extern crate clap;
 
 use std::fmt::Display;
 use std::str::FromStr;
 
+use anyhow::Result;
 use clap::{App, Arg, ArgMatches};
-use std::error::Error;
 
 use aoc_2020::day_01;
 use aoc_2020::day_02;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let matches = App::new("Advent of Code 2017")
         .version(version().as_str())
         .about("Solutions to AoC 2017 !")
@@ -26,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         1 => day_01::run()?,
         2 => day_02::run()?,
 
-        other => return Err(format!("Invalid day: {}", other).into()),
+        other => anyhow::bail!(format!("Invalid day: {}", other)),
     }
     Ok(())
 }

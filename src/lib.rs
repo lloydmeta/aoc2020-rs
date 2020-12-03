@@ -1,3 +1,4 @@
+extern crate anyhow;
 extern crate combine;
 extern crate itertools;
 
