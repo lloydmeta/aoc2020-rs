@@ -46,7 +46,11 @@ struct Seat {
 
 impl Seat {
     fn id(&self) -> usize {
-        self.row() * 8 + self.column()
+        Self::id_from_position(self.row(), self.column())
+    }
+
+    fn id_from_position(row: usize, column: usize) -> usize {
+        row * 8 + column
     }
 
     fn row(&self) -> usize {
@@ -109,7 +113,7 @@ fn find_own_seat(seat_ids: &HashSet<usize>) -> Option<usize> {
         (1..NUM_ROWS_IN_PLANE).into_iter().flat_map(move |row| {
             (0..NUM_COLUMNS_IN_PLANE)
                 .into_iter()
-                .map(move |column| row * 8 + column)
+                .map(move |column| Seat::id_from_position(row, column))
         });
 
     all_ids_possible_ids_without_first_and_last_rows.find(|id| {
