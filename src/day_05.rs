@@ -7,6 +7,19 @@ use std::convert::TryInto;
 
 use std::result::Result as StdResult;
 
+const INPUT: &str = include_str!("../data/day_05_input");
+
+pub fn run() -> Result<()> {
+    println!("*** Day 5: Binary Boarding ***");
+    println!("Input: {}", INPUT);
+    let map = parse(INPUT)?;
+
+    let max_id = map.iter().map(|seat| seat.id()).max();
+
+    println!("Solution 1: {:?}", max_id);
+    Ok(())
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum RowPartition {
     Front,
@@ -27,7 +40,7 @@ struct Seat {
 
 impl Seat {
     fn id(&self) -> usize {
-        self.row() + self.column()
+        self.row() * 8 + self.column()
     }
 
     fn row(&self) -> usize {
@@ -168,5 +181,24 @@ BBFFBBFRLL
         assert_eq!(7, entry_2.column());
         assert_eq!(7, entry_3.column());
         assert_eq!(4, entry_4.column());
+    }
+
+    #[test]
+    fn entry_id_test() {
+        let entry_1 = Seat {
+            row_partitions: [Back, Front, Front, Front, Back, Back, Front],
+            column_partitions: [Right, Right, Right],
+        };
+        let entry_2 = Seat {
+            row_partitions: [Front, Front, Front, Back, Back, Back, Front],
+            column_partitions: [Right, Right, Right],
+        };
+        let entry_3 = Seat {
+            row_partitions: [Back, Back, Front, Front, Back, Back, Front],
+            column_partitions: [Right, Left, Left],
+        };
+        assert_eq!(567, entry_1.id());
+        assert_eq!(119, entry_2.id());
+        assert_eq!(820, entry_3.id());
     }
 }

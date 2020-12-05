@@ -12,6 +12,7 @@ use aoc_2020::day_01;
 use aoc_2020::day_02;
 use aoc_2020::day_03;
 use aoc_2020::day_04;
+use aoc_2020::day_05;
 
 fn main() -> Result<()> {
     let matches = App::new("Advent of Code 2020")
@@ -30,6 +31,7 @@ fn main() -> Result<()> {
         2 => day_02::run()?,
         3 => day_03::run()?,
         4 => day_04::run()?,
+        5 => day_05::run()?,
 
         other => anyhow::bail!(format!("Invalid day: {}", other)),
     }
