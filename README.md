@@ -8,3 +8,9 @@ Run with `cargo run -- $day` to get the solution for a given `$day`.
 # To run the day 1 exercise
 cargo run -- 1
 ``` 
+
+## Warning
+
+* Highly unoptimised ...
+* Likely not even DRY
+* Mostly parsing code to force myself to review parser combinators.
