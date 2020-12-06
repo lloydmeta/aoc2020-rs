@@ -8,6 +8,7 @@ const INPUT: &str = include_str!("../data/day_06_input");
 
 pub fn run() -> Result<()> {
     println!("*** Day 6: Custom Customs ***");
+    println!("Input: {}", INPUT);
     // println!("Input: {}", INPUT);
     let groups_answers = parse(INPUT);
 
@@ -33,7 +34,7 @@ struct GroupAnswers(Vec<PersonAnswers>);
 #[derive(Debug, PartialEq, Eq)]
 struct GroupsAnswers(Vec<GroupAnswers>);
 
-//! Would be more efficient to use bitwise ops ...
+/// Would be more efficient to use bitwise ops ...
 impl GroupsAnswers {
     fn sum_of_group_distinct_answers(&self) -> usize {
         self.0.iter().fold(0, |acc, GroupAnswers(group_answers)| {
