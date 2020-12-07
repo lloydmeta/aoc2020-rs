@@ -38,7 +38,7 @@ fn total_bags_inside<'a>(
 ) -> usize {
     match total_rules.get(target_colour) {
         Some(inner_bags_to_counts) => {
-            if inner_bags_to_counts.len() > 0 {
+            if !inner_bags_to_counts.is_empty() {
                 inner_bags_to_counts
                     .iter()
                     .fold(0, |acc, (inner_bag_colour, num)| {
