@@ -15,32 +15,62 @@ use std::result::Result as StdResult;
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct BagColour(String);
 
+fn find_bags_that_can_eventually_contain<'a>(
+    total_rules: &'a HashMap<BagColour, HashMap<BagColour, usize>>,
+    target_colour: &'a BagColour,
+) -> HashSet<&'a BagColour> {
+    let contains_target = total_rules
+        .iter()
+        .fold(HashSet::new(), |mut acc, (c, rules)| {
+            if rules.get(target_colour).filter(|i| **i > 0).is_some() {
+                acc.insert(c);
+                acc
+            } else {
+                acc
+            }
+        });
+    let mut containers_of_containers =
+        contains_target
+            .iter()
+            .fold(HashSet::new(), |acc, container| {
+                let mut contains_container =
+                    find_bags_that_can_eventually_contain(total_rules, *container);
+                acc.union(&contains_container).map(|p| *p).collect()
+            });
+    contains_target
+        .union(&containers_of_containers)
+        .map(|p| *p)
+        .collect()
+}
+
 fn parse(
     s: &str,
 ) -> StdResult<HashMap<BagColour, HashMap<BagColour, usize>>, easy::ParseError<&str>> {
+    let mut parser = many(single_bag_colour_rules_parser().skip(spaces()));
     let (r, _) = parser.easy_parse(s)?;
     Ok(r)
 }
 
-fn single_bag_colour_rules_parser<Input>() -> impl Parser<Input, Output=(BagColour, HashMap<BagColour, usize>)>
-    where
-        Input: Stream<Token=char>,
-        Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-        <<Input as StreamOnce>::Error as combine::ParseError<
-            char,
-            <Input as StreamOnce>::Range,
-            <Input as StreamOnce>::Position,
-        >>::StreamError: From<ParseIntError>,
-        <<Input as StreamOnce>::Error as combine::ParseError<
-            char,
-            <Input as StreamOnce>::Range,
-            <Input as StreamOnce>::Position,
-        >>::StreamError: From<ParseIntError>,
-        <Input as combine::StreamOnce>::Error: combine::ParseError<
-            char,
-            <Input as combine::StreamOnce>::Range,
-            <Input as combine::StreamOnce>::Position,
-        >,
+fn single_bag_colour_rules_parser<Input>(
+) -> impl Parser<Input, Output = (BagColour, HashMap<BagColour, usize>)>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <Input as combine::StreamOnce>::Error: combine::ParseError<
+        char,
+        <Input as combine::StreamOnce>::Range,
+        <Input as combine::StreamOnce>::Position,
+    >,
 {
     let rules_parser = {
         let rule_parser = number_parser()
@@ -80,33 +110,33 @@ fn single_bag_colour_rules_parser<Input>() -> impl Parser<Input, Output=(BagColo
         .and(rules_parser.or(no_rules_parser))
 }
 
-fn bag_colour_string_parser<Input>() -> impl Parser<Input, Output=String>
-    where
-        Input: Stream<Token=char>,
-        Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+fn bag_colour_string_parser<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
     many::<String, _, _>(letter().or(space()))
 }
 
-fn number_parser<Input>() -> impl Parser<Input, Output=usize>
-    where
-        Input: Stream<Token=char>,
-        Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-        <<Input as StreamOnce>::Error as combine::ParseError<
-            char,
-            <Input as StreamOnce>::Range,
-            <Input as StreamOnce>::Position,
-        >>::StreamError: From<ParseIntError>,
-        <<Input as StreamOnce>::Error as combine::ParseError<
-            char,
-            <Input as StreamOnce>::Range,
-            <Input as StreamOnce>::Position,
-        >>::StreamError: From<ParseIntError>,
-        <Input as combine::StreamOnce>::Error: combine::ParseError<
-            char,
-            <Input as combine::StreamOnce>::Range,
-            <Input as combine::StreamOnce>::Position,
-        >,
+fn number_parser<Input>() -> impl Parser<Input, Output = usize>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <Input as combine::StreamOnce>::Error: combine::ParseError<
+        char,
+        <Input as combine::StreamOnce>::Range,
+        <Input as combine::StreamOnce>::Position,
+    >,
 {
     many::<String, _, _>(digit()).and_then(|d| d.parse::<usize>())
 }
@@ -204,5 +234,68 @@ dotted black bags contain no other bags.
 
         let r = parse(input).unwrap();
         assert_eq!(expected, r);
+    }
+
+    #[test]
+    fn find_bags_that_eventually_contain_test() {
+        let mut rules = HashMap::new();
+        rules.insert(BagColour("light red".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("bright white".to_string()), 1);
+            h.insert(BagColour("muted yellow".to_string()), 2);
+            h
+        });
+        rules.insert(BagColour("dark orange".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("bright white".to_string()), 3);
+            h.insert(BagColour("muted yellow".to_string()), 4);
+            h
+        });
+        rules.insert(BagColour("bright white".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("shiny gold".to_string()), 1);
+            h
+        });
+        rules.insert(BagColour("muted yellow".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("shiny gold".to_string()), 2);
+            h.insert(BagColour("faded blue".to_string()), 9);
+            h
+        });
+        rules.insert(BagColour("shiny gold".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("dark olive".to_string()), 1);
+            h.insert(BagColour("vibrant plum".to_string()), 2);
+            h
+        });
+        rules.insert(BagColour("dark olive".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("faded blue".to_string()), 3);
+            h.insert(BagColour("dotted black".to_string()), 4);
+            h
+        });
+
+        rules.insert(BagColour("vibrant plum".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("faded blue".to_string()), 5);
+            h.insert(BagColour("dotted black".to_string()), 6);
+            h
+        });
+        rules.insert(BagColour("faded blue".to_string()), {
+            let h = HashMap::new();
+            h
+        });
+        rules.insert(BagColour("dotted black".to_string()), {
+            let h = HashMap::new();
+            h
+        });
+        let target_colour = BagColour("shiny gold".to_string());
+        let bags_that_contain_shiny_gold =
+            find_bags_that_can_eventually_contain(&rules, &target_colour);
+        println!(
+            "bags_that_contain_shiny_gold {:?}",
+            bags_that_contain_shiny_gold
+        );
+        assert_eq!(4, bags_that_contain_shiny_gold.len())
     }
 }
