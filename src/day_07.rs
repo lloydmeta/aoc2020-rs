@@ -3,14 +3,27 @@ use combine::easy;
 use combine::parser::char::*;
 use combine::*;
 
-use std::convert::TryInto;
-
 use combine::lib::collections::HashSet;
-use combine::parser::repeat::take_until;
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::num::ParseIntError;
 use std::result::Result as StdResult;
+
+const INPUT: &str = include_str!("../data/day_07_input");
+
+pub fn run() -> Result<()> {
+    println!("*** Day 7: Handy Haversacks ***");
+    println!("Input: {}", INPUT);
+    // println!("Input: {}", INPUT);
+    let all_rules = parse(INPUT)?;
+
+    let target_colour = BagColour("shiny gold".to_string());
+    println!(
+        "Solution 1: {:?}",
+        find_bags_that_can_eventually_contain(&all_rules, &target_colour).len()
+    );
+
+    Ok(())
+}
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct BagColour(String);
@@ -29,17 +42,15 @@ fn find_bags_that_can_eventually_contain<'a>(
                 acc
             }
         });
-    let mut containers_of_containers =
-        contains_target
-            .iter()
-            .fold(HashSet::new(), |acc, container| {
-                let mut contains_container =
-                    find_bags_that_can_eventually_contain(total_rules, *container);
-                acc.union(&contains_container).map(|p| *p).collect()
-            });
+    let containers_of_containers = contains_target
+        .iter()
+        .fold(HashSet::new(), |acc, container| {
+            let contains_container = find_bags_that_can_eventually_contain(total_rules, *container);
+            acc.union(&contains_container).copied().collect()
+        });
     contains_target
         .union(&containers_of_containers)
-        .map(|p| *p)
+        .copied()
         .collect()
 }
 
@@ -80,7 +91,7 @@ where
                     .trim()
                     .strip_suffix(" bag")
                     .or_else(|| s.trim().strip_suffix(" bags"))
-                    .unwrap_or_else(|| &s)
+                    .unwrap_or(&s)
                     .to_owned();
                 BagColour(no_suffix)
             }));
@@ -103,7 +114,7 @@ where
                 .trim()
                 .strip_suffix(" bags contain")
                 .or_else(|| s.trim().strip_suffix(" bags contain no other bags"));
-            let without_suffix = maybe_without_suffix.unwrap_or_else(|| &s).to_owned();
+            let without_suffix = maybe_without_suffix.unwrap_or(&s).to_owned();
             BagColour(without_suffix)
         })
         // .skip(string(" bags contain "))
