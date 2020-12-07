@@ -90,6 +90,8 @@ fn parse(
     Ok(r)
 }
 
+/// Some seriously fucky parsing in here due to not being familiar enough w/ Combine to be able
+/// to stop parsing at delimiters "coloured bags"...
 fn single_bag_colour_rules_parser<Input>(
 ) -> impl Parser<Input, Output = (BagColour, HashMap<BagColour, usize>)>
 where
