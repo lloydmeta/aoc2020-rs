@@ -21,12 +21,40 @@ pub fn run() -> Result<()> {
         "Solution 1: {:?}",
         find_bags_that_can_eventually_contain(&all_rules, &target_colour).len()
     );
+    println!(
+        "Solution 2: {:?}",
+        total_bags_inside(&all_rules, &target_colour)
+    );
 
     Ok(())
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct BagColour(String);
+
+fn total_bags_inside<'a>(
+    total_rules: &'a HashMap<BagColour, HashMap<BagColour, usize>>,
+    target_colour: &'a BagColour,
+) -> usize {
+    match total_rules.get(target_colour) {
+        Some(inner_bags_to_counts) => {
+            if inner_bags_to_counts.len() > 0 {
+                inner_bags_to_counts
+                    .iter()
+                    .fold(0, |acc, (inner_bag_colour, num)| {
+                        if total_rules.contains_key(inner_bag_colour) {
+                            acc + num + num * total_bags_inside(total_rules, inner_bag_colour)
+                        } else {
+                            acc + num
+                        }
+                    })
+            } else {
+                0
+            }
+        }
+        None => 0,
+    }
+}
 
 fn find_bags_that_can_eventually_contain<'a>(
     total_rules: &'a HashMap<BagColour, HashMap<BagColour, usize>>,
@@ -303,10 +331,82 @@ dotted black bags contain no other bags.
         let target_colour = BagColour("shiny gold".to_string());
         let bags_that_contain_shiny_gold =
             find_bags_that_can_eventually_contain(&rules, &target_colour);
-        println!(
-            "bags_that_contain_shiny_gold {:?}",
-            bags_that_contain_shiny_gold
-        );
+
         assert_eq!(4, bags_that_contain_shiny_gold.len())
+    }
+
+    #[test]
+    fn total_bags_inside_test_1() {
+        let mut rules = HashMap::new();
+        rules.insert(BagColour("light red".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("bright white".to_string()), 1);
+            h.insert(BagColour("muted yellow".to_string()), 2);
+            h
+        });
+        rules.insert(BagColour("dark orange".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("bright white".to_string()), 3);
+            h.insert(BagColour("muted yellow".to_string()), 4);
+            h
+        });
+        rules.insert(BagColour("bright white".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("shiny gold".to_string()), 1);
+            h
+        });
+        rules.insert(BagColour("muted yellow".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("shiny gold".to_string()), 2);
+            h.insert(BagColour("faded blue".to_string()), 9);
+            h
+        });
+        rules.insert(BagColour("shiny gold".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("dark olive".to_string()), 1);
+            h.insert(BagColour("vibrant plum".to_string()), 2);
+            h
+        });
+        rules.insert(BagColour("dark olive".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("faded blue".to_string()), 3);
+            h.insert(BagColour("dotted black".to_string()), 4);
+            h
+        });
+
+        rules.insert(BagColour("vibrant plum".to_string()), {
+            let mut h = HashMap::new();
+            h.insert(BagColour("faded blue".to_string()), 5);
+            h.insert(BagColour("dotted black".to_string()), 6);
+            h
+        });
+        rules.insert(BagColour("faded blue".to_string()), {
+            let h = HashMap::new();
+            h
+        });
+        rules.insert(BagColour("dotted black".to_string()), {
+            let h = HashMap::new();
+            h
+        });
+        let target_colour = BagColour("shiny gold".to_string());
+        let total_bags_inside_shiny_gold = total_bags_inside(&rules, &target_colour);
+        assert_eq!(32, total_bags_inside_shiny_gold)
+    }
+
+    #[test]
+    fn total_bags_inside_test_2() {
+        let test_input = "shiny gold bags contain 2 dark red bags.
+dark red bags contain 2 dark orange bags.
+dark orange bags contain 2 dark yellow bags.
+dark yellow bags contain 2 dark green bags.
+dark green bags contain 2 dark blue bags.
+dark blue bags contain 2 dark violet bags.
+dark violet bags contain no other bags.
+";
+        let rules = parse(test_input).unwrap();
+
+        let target_colour = BagColour("shiny gold".to_string());
+        let total_bags_inside_shiny_gold = total_bags_inside(&rules, &target_colour);
+        assert_eq!(126, total_bags_inside_shiny_gold)
     }
 }
