@@ -4,9 +4,62 @@ use combine::parser::char::*;
 use combine::*;
 
 use combine::lib::collections::HashSet;
-use std::collections::HashMap;
 use std::num::ParseIntError;
 use std::result::Result as StdResult;
+
+const INPUT: &str = include_str!("../data/day_08_input");
+
+pub fn run() -> Result<()> {
+    println!("*** Day 8: Handheld Halting");
+    println!("Input: {}", INPUT);
+    let program = parse(INPUT)?;
+    let mut interpreter = Interpreter::new(&program);
+
+    interpreter.run_until_repeat();
+
+    println!("Solution 1: {:?}", interpreter.accumulator);
+
+    Ok(())
+}
+
+struct Interpreter<'a> {
+    next_index: usize,
+    visited_indices: HashSet<usize>,
+    accumulator: isize,
+    program: &'a Program,
+}
+
+impl<'a> Interpreter<'a> {
+    fn new(program: &Program) -> Interpreter {
+        Interpreter {
+            next_index: 0,
+            visited_indices: HashSet::new(),
+            accumulator: 0,
+            program,
+        }
+    }
+
+    fn run_until_repeat(&mut self) {
+        while let Some(instruction) = self.program.0.get(self.next_index) {
+            if self.visited_indices.contains(&self.next_index) {
+                break;
+            }
+            let current_index = self.next_index;
+            match instruction {
+                Instruction::Noop => self.next_index += 1,
+                Instruction::Acc(by) => {
+                    self.accumulator += by;
+                    self.next_index += 1;
+                }
+                Instruction::Jump(jump) => {
+                    let idx_as_i = self.next_index as isize;
+                    self.next_index = (idx_as_i + jump) as usize;
+                }
+            }
+            self.visited_indices.insert(current_index);
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 enum Instruction {
@@ -101,5 +154,24 @@ acc +6
         ]);
         let r = parse(input).unwrap();
         assert_eq!(expected, r);
+    }
+
+    #[test]
+    fn interpreter_run_test() {
+        let input = "nop +0
+acc +1
+jmp +4
+acc +3
+jmp -3
+acc -99
+acc +1
+jmp -4
+acc +6
+";
+        let program = parse(input).unwrap();
+        let mut interpreter = Interpreter::new(&program);
+        interpreter.run_until_repeat();
+
+        assert_eq!(5, interpreter.accumulator);
     }
 }
