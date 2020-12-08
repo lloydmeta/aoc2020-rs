@@ -13,11 +13,14 @@ pub fn run() -> Result<()> {
     println!("*** Day 8: Handheld Halting");
     println!("Input: {}", INPUT);
     let program = parse(INPUT)?;
+
     let mut interpreter = Interpreter::new(&program);
-
     interpreter.run_until_repeat();
-
     println!("Solution 1: {:?}", interpreter.accumulator);
+
+    let mut interpreter_2 = Interpreter::new(&program);
+    let r = interpreter_2.corrected_until_end();
+    println!("Solution 2: {:?}", r);
 
     Ok(())
 }
@@ -59,17 +62,57 @@ impl<'a> Interpreter<'a> {
             self.visited_indices.insert(current_index);
         }
     }
+
+    fn corrected_until_end(&mut self) -> Option<isize> {
+        self.program
+            .corrected_variations()
+            .into_iter()
+            .filter_map(|corrected_variation| {
+                let program = Program(corrected_variation);
+                let mut interpreter = Interpreter::new(&program);
+                interpreter.run_until_repeat();
+
+                if interpreter.next_index == interpreter.program.0.len() {
+                    Some(interpreter.accumulator)
+                } else {
+                    None
+                }
+            })
+            .next()
+    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum Instruction {
     Noop,
     Acc(isize),
     Jump(isize),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct Program(Vec<Instruction>);
+
+impl Program {
+    fn corrected_variations(&self) -> Vec<Vec<Instruction>> {
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(idx, instr)| match instr {
+                Instruction::Jump(_) => {
+                    let mut cloned = self.0.clone();
+                    cloned[idx] = Instruction::Noop;
+                    cloned
+                }
+                Instruction::Noop => {
+                    let mut cloned = self.0.clone();
+                    cloned[idx] = Instruction::Jump(0);
+                    cloned
+                }
+                Instruction::Acc(_) => self.0.clone(),
+            })
+            .collect()
+    }
+}
 
 fn i_number_parser<Input>() -> impl Parser<Input, Output = isize>
 where
@@ -173,5 +216,24 @@ acc +6
         interpreter.run_until_repeat();
 
         assert_eq!(5, interpreter.accumulator);
+    }
+
+    #[test]
+    fn corrected_until_end_test() {
+        let input = "nop +0
+acc +1
+jmp +4
+acc +3
+jmp -3
+acc -99
+acc +1
+jmp -4
+acc +6
+";
+        let program = parse(input).unwrap();
+        let mut interpreter = Interpreter::new(&program);
+        let r = interpreter.corrected_until_end();
+
+        assert_eq!(Some(8), r);
     }
 }
