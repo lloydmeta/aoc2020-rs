@@ -21,9 +21,8 @@ fn find_preamble_error(v: &[usize], preamble_size: usize) -> Vec<usize> {
         .into_iter()
         .filter_map(|idx| {
             let number = v[idx];
-            let preamble: Vec<usize> = v[idx - preamble_size..idx].iter().copied().collect();
+            let preamble = v[idx - preamble_size..idx].into_iter().copied();
             let first_sum_in_preamble_to_num = preamble
-                .into_iter()
                 .combinations(2)
                 .find(|v| v.iter().sum::<usize>() == number);
             if first_sum_in_preamble_to_num.is_none() {
@@ -82,6 +81,6 @@ mod tests {
             576,
         ];
 
-        assert_eq!(Some(127), find_preamble_error(&v, 5));
+        assert_eq!(Some(&127), find_preamble_error(&v, 5).first());
     }
 }
