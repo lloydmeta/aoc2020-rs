@@ -43,7 +43,7 @@ fn find_min_max_sums_in_first_window_adding_to(v: &[usize], target: usize) -> Op
     (2..valid_numbers.len())
         .into_iter()
         .flat_map(|window_size| {
-            let sums_to_target: Vec<_> = valid_numbers
+            let sum_of_min_max_in_vecs_that_sum_to_target: Vec<_> = valid_numbers
                 .as_slice()
                 .windows(window_size)
                 .filter_map(|window| {
@@ -59,7 +59,7 @@ fn find_min_max_sums_in_first_window_adding_to(v: &[usize], target: usize) -> Op
                     }
                 })
                 .collect();
-            sums_to_target
+            sum_of_min_max_in_vecs_that_sum_to_target
         })
         .next()
 }
