@@ -44,14 +44,14 @@ fn differences_between_consecutive_elements(s: &[usize]) -> HashMap<usize, isize
         })
 }
 
-fn viable_chains(s: &[usize]) -> Vec<Vec<Vec<usize>>> {
-    let mut sorted: Vec<_> = s.iter().copied().sorted().collect();
+fn viable_chains(s: &[usize]) -> Vec<Vec<usize>> {
+    let sorted: Vec<_> = s.iter().copied().sorted().collect();
 
     let min_elements = ceil_divide(sorted.len(), 3);
 
-    (1..min_elements + 1)
+    let t: Vec<_> = (1..min_elements + 1)
         .into_iter()
-        .map(|elements_to_remove| {
+        .flat_map(|elements_to_remove| {
             let combinations_of_indices_to_remove: Vec<_> = (0..sorted.len() - 1)
                 .combinations(elements_to_remove)
                 .map(|v| {
@@ -61,7 +61,7 @@ fn viable_chains(s: &[usize]) -> Vec<Vec<Vec<usize>>> {
                 .unique()
                 .collect();
             combinations_of_indices_to_remove
-                .iter()
+                .into_iter()
                 .filter_map(|indices_combination| {
                     let indices_combination_set: HashSet<_> = indices_combination.iter().collect();
                     let without_elements_at_indices: Vec<_> = sorted
@@ -80,9 +80,9 @@ fn viable_chains(s: &[usize]) -> Vec<Vec<Vec<usize>>> {
                         None
                     }
                 })
-                .collect()
         })
-        .collect()
+        .collect();
+    t
 }
 
 fn ceil_divide(top: usize, bottom: usize) -> usize {
