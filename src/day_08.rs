@@ -10,7 +10,7 @@ use std::result::Result as StdResult;
 const INPUT: &str = include_str!("../data/day_08_input");
 
 pub fn run() -> Result<()> {
-    println!("*** Day 8: Handheld Halting");
+    println!("*** Day 8: Handheld Halting ***");
     println!("Input: {}", INPUT);
     let program = parse(INPUT)?;
 
