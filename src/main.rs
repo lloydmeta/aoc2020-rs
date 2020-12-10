@@ -61,9 +61,9 @@ fn version() -> String {
 }
 
 fn get_number<'a, A>(name: &str, maybe_min: Option<A>, matches: &ArgMatches<'a>) -> A
-    where
-        A: FromStr + PartialOrd + Display + Copy,
-        <A as FromStr>::Err: std::fmt::Debug,
+where
+    A: FromStr + PartialOrd + Display + Copy,
+    <A as FromStr>::Err: std::fmt::Debug,
 {
     matches
         .value_of(name)

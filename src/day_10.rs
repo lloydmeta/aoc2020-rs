@@ -1,5 +1,5 @@
-use combine::lib::collections::HashMap;
 use anyhow::Result;
+use combine::lib::collections::{HashMap, HashSet};
 use itertools::Itertools;
 
 const INPUT: &str = include_str!("../data/day_10_input");
@@ -10,14 +10,14 @@ pub fn run() -> Result<()> {
     let numbers = parse(INPUT);
 
     let differences_distribution = differences_between_consecutive_elements(&numbers);
-    let solution_1 = differences_distribution.get(&1).zip(differences_distribution.get(&3)).map(|(one, three)| {
-        *one * three
-    });
+    let solution_1 = differences_distribution
+        .get(&1)
+        .zip(differences_distribution.get(&3))
+        .map(|(one, three)| *one * three);
     println!("Solution 1: {:?}", solution_1);
 
     Ok(())
 }
-
 
 fn parse(s: &str) -> Vec<usize> {
     s.split('\n').filter_map(|i| i.parse().ok()).collect()
@@ -42,6 +42,51 @@ fn differences_between_consecutive_elements(s: &[usize]) -> HashMap<usize, isize
             *acc.entry(diff).or_insert(0) += 1;
             acc
         })
+}
+
+fn viable_chains(s: &[usize]) -> Vec<Vec<Vec<usize>>> {
+    let mut sorted: Vec<_> = s.iter().copied().sorted().collect();
+
+    let min_elements = ceil_divide(sorted.len(), 3);
+
+    (1..min_elements + 1)
+        .into_iter()
+        .map(|elements_to_remove| {
+            let combinations_of_indices_to_remove: Vec<_> = (0..sorted.len() - 1)
+                .combinations(elements_to_remove)
+                .map(|v| {
+                    let s: Vec<_> = v.into_iter().sorted().collect();
+                    s
+                })
+                .unique()
+                .collect();
+            combinations_of_indices_to_remove
+                .iter()
+                .filter_map(|indices_combination| {
+                    let indices_combination_set: HashSet<_> = indices_combination.iter().collect();
+                    let without_elements_at_indices: Vec<_> = sorted
+                        .iter()
+                        .enumerate()
+                        .filter(|(idx, _)| !indices_combination_set.contains(idx))
+                        .map(|pair| *pair.1)
+                        .collect();
+                    let all_diffs_less_than_equal_3 = without_elements_at_indices
+                        .iter()
+                        .zip(without_elements_at_indices.iter().skip(1))
+                        .all(|(first, second)| *second - first <= 3);
+                    if all_diffs_less_than_equal_3 {
+                        Some(without_elements_at_indices)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn ceil_divide(top: usize, bottom: usize) -> usize {
+    (top as f64 / bottom as f64).ceil() as usize
 }
 
 #[cfg(test)]
@@ -102,5 +147,15 @@ mod tests {
         let distribution = differences_between_consecutive_elements(&v);
         assert_eq!(22, *distribution.get(&1).unwrap());
         assert_eq!(10, *distribution.get(&3).unwrap());
+    }
+
+    #[test]
+    fn differences_between_consecutive_elements_testd_2() {
+        println!("22 / 3 {}", 22 / 3);
+        println!("22 / 3 {}", (22 as f64 / 3 as f64).ceil() as usize);
+        println!("23/ 3 {}", 23 / 3);
+        println!("25/ 3 {}", 25 / 3);
+        println!("20/ 3 {}", 20 / 3);
+        assert!(false)
     }
 }
