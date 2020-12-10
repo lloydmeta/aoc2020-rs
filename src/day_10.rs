@@ -1,5 +1,5 @@
 use anyhow::Result;
-use combine::lib::collections::{HashMap, HashSet};
+use combine::lib::collections::HashMap;
 use itertools::Itertools;
 
 const INPUT: &str = include_str!("../data/day_10_input");
@@ -15,6 +15,8 @@ pub fn run() -> Result<()> {
         .zip(differences_distribution.get(&3))
         .map(|(one, three)| *one * three);
     println!("Solution 1: {:?}", solution_1);
+
+    println!("Solution 2: {:?}", count_viable_chains(&numbers));
 
     Ok(())
 }
@@ -44,49 +46,48 @@ fn differences_between_consecutive_elements(s: &[usize]) -> HashMap<usize, isize
         })
 }
 
-fn viable_chains(s: &[usize]) -> Vec<Vec<usize>> {
-    let sorted: Vec<_> = s.iter().copied().sorted().collect();
+fn count_viable_chains(adapters: &[usize]) -> usize {
+    let sorted_adapter_joltages: Vec<_> = adapters.iter().sorted().copied().collect();
 
-    let min_elements = ceil_divide(sorted.len(), 3);
+    if let Some(&last_adapter_joltage) = sorted_adapter_joltages.last() {
+        let times_joltage_appears_in_chains = sorted_adapter_joltages.into_iter().fold(
+            // Lookup that maps adapter joltage to number of times it can appear in a chain
+            // given the adapters that we have
+            HashMap::new(),
+            |mut times_joltage_appears_in_chains, adapter_joltage| {
+                if adapter_joltage <= 3 {
+                    *times_joltage_appears_in_chains
+                        .entry(adapter_joltage)
+                        .or_insert(0) += 1;
+                }
 
-    let t: Vec<_> = (1..min_elements + 1)
-        .into_iter()
-        .flat_map(|elements_to_remove| {
-            let combinations_of_indices_to_remove: Vec<_> = (0..sorted.len() - 1)
-                .combinations(elements_to_remove)
-                .map(|v| {
-                    let s: Vec<_> = v.into_iter().sorted().collect();
-                    s
-                })
-                .unique()
-                .collect();
-            combinations_of_indices_to_remove
-                .into_iter()
-                .filter_map(|indices_combination| {
-                    let indices_combination_set: HashSet<_> = indices_combination.iter().collect();
-                    let without_elements_at_indices: Vec<_> = sorted
-                        .iter()
-                        .enumerate()
-                        .filter(|(idx, _)| !indices_combination_set.contains(idx))
-                        .map(|pair| *pair.1)
-                        .collect();
-                    let all_diffs_less_than_equal_3 = without_elements_at_indices
-                        .iter()
-                        .zip(without_elements_at_indices.iter().skip(1))
-                        .all(|(first, second)| *second - first <= 3);
-                    if all_diffs_less_than_equal_3 {
-                        Some(without_elements_at_indices)
-                    } else {
-                        None
-                    }
-                })
-        })
-        .collect();
-    t
-}
+                (1..4.min(adapter_joltage)).into_iter().fold(
+                    times_joltage_appears_in_chains,
+                    |mut inner_times_joltage_appears_in_chains, joltage_decrease| {
+                        let lower_joltage = adapter_joltage - joltage_decrease;
+                        let times_lower_joltage_has_appeared =
+                            inner_times_joltage_appears_in_chains
+                                .get(&lower_joltage)
+                                .copied()
+                                .unwrap_or(0);
+                        *inner_times_joltage_appears_in_chains
+                            .entry(adapter_joltage)
+                            .or_insert(0) += times_lower_joltage_has_appeared;
+                        inner_times_joltage_appears_in_chains
+                    },
+                )
+            },
+        );
 
-fn ceil_divide(top: usize, bottom: usize) -> usize {
-    (top as f64 / bottom as f64).ceil() as usize
+        // the last adapter *must* be part of the chain because the device adapter joltage is
+        // based on it.
+        times_joltage_appears_in_chains
+            .get(&last_adapter_joltage)
+            .copied()
+            .unwrap_or(0)
+    } else {
+        0
+    }
 }
 
 #[cfg(test)]
@@ -150,12 +151,20 @@ mod tests {
     }
 
     #[test]
-    fn differences_between_consecutive_elements_testd_2() {
-        println!("22 / 3 {}", 22 / 3);
-        println!("22 / 3 {}", (22 as f64 / 3 as f64).ceil() as usize);
-        println!("23/ 3 {}", 23 / 3);
-        println!("25/ 3 {}", 25 / 3);
-        println!("20/ 3 {}", 20 / 3);
-        assert!(false)
+    fn count_viable_chains_test_1() {
+        let v = vec![16, 10, 15, 5, 1, 11, 7, 19, 6, 12, 4];
+        let r = count_viable_chains(&v);
+        assert_eq!(8, r);
+        // panic!()
+    }
+
+    #[test]
+    fn count_viable_chains_test_2() {
+        let v = vec![
+            28, 33, 18, 42, 31, 14, 46, 20, 48, 47, 24, 23, 49, 45, 19, 38, 39, 11, 1, 32, 25, 35,
+            8, 17, 7, 9, 4, 2, 34, 10, 3,
+        ];
+        let r = count_viable_chains(&v);
+        assert_eq!(19208, r)
     }
 }
