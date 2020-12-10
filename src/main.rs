@@ -17,6 +17,7 @@ use aoc_2020::day_06;
 use aoc_2020::day_07;
 use aoc_2020::day_08;
 use aoc_2020::day_09;
+use aoc_2020::day_10;
 
 fn main() -> Result<()> {
     let matches = App::new("Advent of Code 2020")
@@ -40,6 +41,7 @@ fn main() -> Result<()> {
         7 => day_07::run()?,
         8 => day_08::run()?,
         9 => day_09::run()?,
+        10 => day_10::run()?,
 
         other => anyhow::bail!(format!("Invalid day: {}", other)),
     }
@@ -59,9 +61,9 @@ fn version() -> String {
 }
 
 fn get_number<'a, A>(name: &str, maybe_min: Option<A>, matches: &ArgMatches<'a>) -> A
-where
-    A: FromStr + PartialOrd + Display + Copy,
-    <A as FromStr>::Err: std::fmt::Debug,
+    where
+        A: FromStr + PartialOrd + Display + Copy,
+        <A as FromStr>::Err: std::fmt::Debug,
 {
     matches
         .value_of(name)
