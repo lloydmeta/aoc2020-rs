@@ -110,7 +110,7 @@ mod tests {
             576,
         ];
 
-        assert_eq!(Some(&127), find_preamble_error(&v, 5).first());
+        assert_eq!(Some(127), find_preamble_error(&v, 5));
     }
 
     #[test]
