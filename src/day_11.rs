@@ -16,7 +16,7 @@ pub fn run() -> Result<()> {
     simulation.run_til_no_changes(|s| s.step(4, |grid, i, j| grid.adjacent_grid_results(i, j)));
     println!("Solution 1: {:?}", simulation.occupied_seats());
 
-    let mut simulation_tolerant = Simulation::new(grid.clone());
+    let mut simulation_tolerant = Simulation::new(grid);
     simulation_tolerant
         .run_til_no_changes(|s| s.step(5, |grid, i, j| grid.next_adjacent_seat_results(i, j)));
     println!("Solution 2: {:?}", simulation_tolerant.occupied_seats());
@@ -51,7 +51,7 @@ impl std::fmt::Display for Grid {
             for space in row {
                 write!(f, "{}", space)?
             }
-            write!(f, "\n")?
+            writeln!(f)?
         }
         Ok(())
     }
@@ -136,8 +136,7 @@ impl Grid {
                 current_row
                     .iter()
                     .skip(j + 1)
-                    .filter(|space| **space != Space::Floor)
-                    .next()
+                    .find(|space| **space != Space::Floor)
             })
         };
 
@@ -181,8 +180,7 @@ impl Grid {
                 row.iter()
                     .take(j)
                     .rev()
-                    .filter(|space| **space != Space::Floor)
-                    .next()
+                    .find(|space| **space != Space::Floor)
             })
         };
 
@@ -285,7 +283,7 @@ impl Simulation {
 
     fn run_til_no_changes<F>(&mut self, step: F)
     where
-        F: Fn(&mut Self) -> (),
+        F: Fn(&mut Self),
     {
         while !self.no_changes {
             step(self);
