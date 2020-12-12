@@ -17,10 +17,15 @@ pub fn run() -> Result<()> {
     println!("Input: {}", INPUT);
     let actions = parse(INPUT)?;
 
-    let mut simulation = Interpreter::new(actions);
+    let mut simulation = Interpreter::new(actions.clone());
     simulation.run();
     let solution_1 = simulation.current_coords.manhattan_distance();
     println!("Solution 1: {:?}", solution_1);
+
+    let mut simulation_2 = WaypointInterpreter::new(actions.clone());
+    simulation_2.run();
+    let solution_2 = simulation_2.current_coords.manhattan_distance();
+    println!("Solution 2: {:?}", solution_2);
 
     Ok(())
 }
@@ -123,7 +128,6 @@ impl Interpreter {
 
     fn run(&mut self) {
         for action in self.instructions.iter() {
-            println!("action {:?}", action);
             match action {
                 North(by) => {
                     // self.current_direction = Direction::North;
@@ -149,9 +153,99 @@ impl Interpreter {
                 },
                 Rotate(to, by) => self.current_direction = self.current_direction.rotate(to, by),
             }
+        }
+    }
+}
 
-            println!("coords {:?}", self.current_coords);
-            println!("direction {:?}", self.current_direction);
+struct WaypointInterpreter {
+    waypoint: WayPoint,
+    current_coords: Coords,
+    instructions: Vec<Action>,
+}
+
+impl WaypointInterpreter {
+    fn new(instructions: Vec<Action>) -> WaypointInterpreter {
+        WaypointInterpreter {
+            waypoint: WayPoint { x: 10, y: 1 },
+            current_coords: Coords { x: 0, y: 0 },
+            instructions,
+        }
+    }
+
+    fn run(&mut self) {
+        for action in self.instructions.iter() {
+            match action {
+                North(by) => {
+                    // self.current_direction = Direction::North;
+                    self.waypoint.move_north(*by);
+                }
+                East(by) => {
+                    // self.current_direction = Direction::East;
+                    self.waypoint.move_east(*by);
+                }
+                South(by) => {
+                    // self.current_direction = Direction::South;
+                    self.waypoint.move_south(*by);
+                }
+                West(by) => {
+                    // self.current_direction = Direction::West;
+                    self.waypoint.move_west(*by);
+                }
+                Forward(by) => {
+                    let x_diff = *by as isize * self.waypoint.x;
+                    let y_diff = *by as isize * self.waypoint.y;
+                    self.current_coords.x += x_diff;
+                    self.current_coords.y += y_diff;
+                }
+                Rotate(to, by) => self.waypoint.rotate(to, by),
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct WayPoint {
+    // units relative to the ship
+    x: isize,
+    y: isize,
+}
+
+impl WayPoint {
+    fn move_north(&mut self, amt: usize) {
+        self.y += amt as isize;
+    }
+
+    fn move_east(&mut self, amt: usize) {
+        self.x += amt as isize;
+    }
+
+    fn move_south(&mut self, amt: usize) {
+        self.y -= amt as isize;
+    }
+
+    fn move_west(&mut self, amt: usize) {
+        self.x -= amt as isize;
+    }
+
+    fn rotate(&mut self, to: &RotateTo, by: &Degrees) {
+        // right-biased rotation
+        let rotate_multiplier = if to == &RotateTo::Right { -1 } else { 1 };
+        match by {
+            &Degrees::_90 => {
+                //
+                let temp_y = self.y;
+                self.y = rotate_multiplier * self.x;
+                self.x = rotate_multiplier * -1 * temp_y;
+            }
+            &Degrees::_180 => {
+                self.x = -self.x;
+                self.y = -self.y;
+            }
+            &Degrees::_270 => {
+                let temp_y = self.y;
+                self.y = rotate_multiplier * -1 * self.x;
+                self.x = rotate_multiplier * temp_y
+            }
         }
     }
 }
@@ -273,5 +367,39 @@ F11
     #[test]
     fn manhattan_distance_test() {
         assert_eq!(25, Coords { x: 17, y: -8 }.manhattan_distance())
+    }
+
+    #[test]
+    fn way_point_rotate_test() {
+        use Direction::*;
+        let mut way_point = WayPoint { x: 2, y: 1 };
+        way_point.rotate(&Right, &_90);
+        assert_eq!(WayPoint { x: 1, y: -2 }, way_point);
+        way_point.rotate(&Right, &_90);
+        assert_eq!(WayPoint { x: -2, y: -1 }, way_point);
+        way_point.rotate(&Right, &_90);
+        assert_eq!(WayPoint { x: -1, y: 2 }, way_point);
+        way_point.rotate(&Right, &_180);
+        assert_eq!(WayPoint { x: 1, y: -2 }, way_point);
+        way_point.rotate(&Left, &_180);
+        assert_eq!(WayPoint { x: -1, y: 2 }, way_point);
+        way_point.rotate(&Left, &_270);
+        assert_eq!(WayPoint { x: 2, y: 1 }, way_point);
+        way_point.rotate(&Left, &_90);
+        assert_eq!(WayPoint { x: -1, y: 2 }, way_point);
+    }
+
+    #[test]
+    fn simple_way_pointsimulation_test() {
+        let instructions = vec![
+            Forward(10),
+            North(3),
+            Forward(7),
+            Rotate(Right, _90),
+            Forward(11),
+        ];
+        let mut simulation = WaypointInterpreter::new(instructions);
+        simulation.run();
+        assert_eq!(Coords { x: 214, y: -72 }, simulation.current_coords)
     }
 }
