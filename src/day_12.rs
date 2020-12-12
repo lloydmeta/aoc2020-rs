@@ -1,12 +1,10 @@
 use anyhow::Result;
 use combine::easy;
-use combine::lib::fmt::Formatter;
 use combine::parser::char::*;
 use combine::*;
 use std::num::ParseIntError;
 use std::result::Result as StdResult;
 
-use combine::stream::ResetStream;
 use Action::*;
 use Degrees::*;
 
@@ -22,7 +20,7 @@ pub fn run() -> Result<()> {
     let solution_1 = simulation.current_coords.manhattan_distance();
     println!("Solution 1: {:?}", solution_1);
 
-    let mut simulation_2 = WaypointInterpreter::new(actions.clone());
+    let mut simulation_2 = WaypointInterpreter::new(actions);
     simulation_2.run();
     let solution_2 = simulation_2.current_coords.manhattan_distance();
     println!("Solution 2: {:?}", solution_2);
@@ -230,20 +228,20 @@ impl WayPoint {
     fn rotate(&mut self, to: &RotateTo, by: &Degrees) {
         // right-biased rotation
         let rotate_multiplier = if to == &RotateTo::Right { -1 } else { 1 };
-        match by {
-            &Degrees::_90 => {
+        match *by {
+            Degrees::_90 => {
                 //
                 let temp_y = self.y;
                 self.y = rotate_multiplier * self.x;
-                self.x = rotate_multiplier * -1 * temp_y;
+                self.x = -rotate_multiplier * temp_y;
             }
-            &Degrees::_180 => {
+            Degrees::_180 => {
                 self.x = -self.x;
                 self.y = -self.y;
             }
-            &Degrees::_270 => {
+            Degrees::_270 => {
                 let temp_y = self.y;
-                self.y = rotate_multiplier * -1 * self.x;
+                self.y = -rotate_multiplier * self.x;
                 self.x = rotate_multiplier * temp_y
             }
         }
@@ -316,8 +314,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Action::*;
-    use Degrees::*;
     use RotateTo::*;
 
     #[test]
@@ -371,7 +367,6 @@ F11
 
     #[test]
     fn way_point_rotate_test() {
-        use Direction::*;
         let mut way_point = WayPoint { x: 2, y: 1 };
         way_point.rotate(&Right, &_90);
         assert_eq!(WayPoint { x: 1, y: -2 }, way_point);
