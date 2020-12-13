@@ -9,6 +9,8 @@ clap = "2.33"
 itertools = "0.9"
 combine = "4.4"
 anyhow = "1.0"
+num = "0.3"
+
 
 [profile.release]
 opt-level = 3
