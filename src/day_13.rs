@@ -77,41 +77,38 @@ impl Notes {
             })
             .collect();
 
-        if let Some((first_bus_id, _)) = bus_ids_with_time_offsets.first() {
-            let (bus_0_departure, _) = bus_ids_with_time_offsets.iter().skip(1).try_fold(
-                (0, **first_bus_id),
-                |(current_first_bus_departure, current_bus_group_period),
-                 (next_bus_period, next_bus_offset)| {
-                    // The next departure time for the first bus that matches the period and offset of the next bus
-                    let next_bus_group_departure = (current_first_bus_departure..)
-                        .step_by(current_bus_group_period as usize)
-                        .filter(|departure_time| {
-                            (*departure_time + next_bus_offset) % **next_bus_period == 0
-                        })
-                        .next()?;
+        let (first_bus_id, _) = bus_ids_with_time_offsets.first()?;
+        let (bus_0_departure, _) = bus_ids_with_time_offsets.iter().skip(1).try_fold(
+            (0, **first_bus_id),
+            |(current_first_bus_departure, current_bus_group_period),
+             (next_bus_period, next_bus_offset)| {
+                // The next departure time for the first bus that matches the period and offset of the next bus
+                let next_bus_group_departure = (current_first_bus_departure..)
+                    .step_by(current_bus_group_period as usize)
+                    .filter(|departure_time| {
+                        (*departure_time + next_bus_offset) % **next_bus_period == 0
+                    })
+                    .next()?;
 
-                    // The combined period for all the buses we've visited, including this new, "next" one.
-                    // By incrementing with this "new" combined period, we ensure that the offsets
-                    // of the previous visited buses are taken into account
+                // The combined period for all the buses we've visited, including this new, "next" one.
+                // By incrementing with this "new" combined period, we ensure that the offsets
+                // of the previous visited buses are taken into account
 
-                    // e.g. given (7, 13, x, x, 59)
-                    // 1. Between 7 (offset 0) and 13 (offset 1), the first offset is 77, (77/7 = 1, 78/13 = 6)
-                    //    New period is LCM of them, which is 91
-                    // 2. Next, find one that works ith 59, offset 4:
-                    //    [(77 + x *(91)) + 4]  % 59 = 0, where the first group is te next departure time,
-                    //     just keep incrementing x
-                    //    next departure time = 77 * 3 * 91  = 350
-                    //    check: 350 / 7 = 50, 351/13 = 27, 354/59 = 6
-                    let new_bus_group_period = lcm(current_bus_group_period, **next_bus_period);
+                // e.g. given (7, 13, x, x, 59)
+                // 1. Between 7 (offset 0) and 13 (offset 1), the first offset is 77, (77/7 = 1, 78/13 = 6)
+                //    New period is LCM of them, which is 91
+                // 2. Next, find one that works ith 59, offset 4:
+                //    [(77 + x *(91)) + 4]  % 59 = 0, where the first group is te next departure time,
+                //     just keep incrementing x
+                //    next departure time = 77 * 3 * 91  = 350
+                //    check: 350 / 7 = 50, 351/13 = 27, 354/59 = 6
+                let new_bus_group_period = lcm(current_bus_group_period, **next_bus_period);
 
-                    Some((next_bus_group_departure, new_bus_group_period))
-                },
-            )?;
+                Some((next_bus_group_departure, new_bus_group_period))
+            },
+        )?;
 
-            Some(bus_0_departure)
-        } else {
-            None
-        }
+        Some(bus_0_departure)
     }
 }
 
