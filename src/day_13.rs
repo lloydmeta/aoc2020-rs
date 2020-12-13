@@ -48,19 +48,16 @@ impl Notes {
     }
 
     fn solution_1(&self) -> Option<u128> {
-        let earliest_departure_with_buses = self
+        let (time, buses) = self
             .bus_departures()
-            .filter(|(time, _)| *time >= self.earliest_departure_minute)
-            .next();
-        earliest_departure_with_buses.and_then(|(time, buses)| {
-            buses.first().and_then(|first_bus| {
-                if let Bus::Id(id) = first_bus {
-                    Some(id * (time - self.earliest_departure_minute))
-                } else {
-                    None
-                }
-            })
-        })
+            .find(|(time, _)| *time >= self.earliest_departure_minute)?;
+        let first_bus = buses.first()?;
+
+        if let Bus::Id(id) = first_bus {
+            Some(id * (time - self.earliest_departure_minute))
+        } else {
+            None
+        }
     }
 
     fn solution_2(&self) -> Option<u128> {
@@ -85,10 +82,9 @@ impl Notes {
                 // The next departure time for the first bus that matches the period and offset of the next bus
                 let next_bus_group_departure = (current_first_bus_departure..)
                     .step_by(current_bus_group_period as usize)
-                    .filter(|departure_time| {
+                    .find(|departure_time| {
                         (*departure_time + next_bus_offset) % **next_bus_period == 0
-                    })
-                    .next()?;
+                    })?;
 
                 // The combined period for all the buses we've visited, including this new, "next" one.
                 // By incrementing with this "new" combined period, we ensure that the offsets
