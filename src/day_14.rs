@@ -57,9 +57,6 @@ fn parse(s: &str) -> StdResult<Vec<Group>, easy::ParseError<&str>> {
                 full_string.iter().collect()
             };
 
-            println!("or_bitmask_string {}", or_bitmask_string);
-            println!("and_bitmask_string {}", and_bitmask_string);
-
             let or_bitmask = u64::from_str_radix(&or_bitmask_string, 2);
             let and_bitmask = u64::from_str_radix(&and_bitmask_string, 2);
             or_bitmask.and_then(|or_bitmask| {
