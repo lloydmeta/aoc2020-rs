@@ -14,6 +14,45 @@ struct Mask {
     and_bitmask: u64,
 }
 
+impl Mask {
+    fn from_str(s: &str) -> StdResult<Mask, ParseIntError> {
+        let (mut or_bitmask_vec_36_bits, mut and_bitmask_str_36_bits) = s.chars().enumerate().fold(
+            (vec!['0'; 36], vec!['1'; 36]),
+            |(mut or_bitmask_str, mut and_bitmask_str), (idx, next_char)| {
+                match next_char {
+                    '1' => or_bitmask_str[idx] = '1',
+                    '0' => and_bitmask_str[idx] = '0',
+                    _ => (),
+                }
+                (or_bitmask_str, and_bitmask_str)
+            },
+        );
+        let or_bitmask_string: String = {
+            let mut full_string = vec!['0'; 28];
+            full_string.append(&mut or_bitmask_vec_36_bits);
+            full_string.iter().collect()
+        };
+        let and_bitmask_string: String = {
+            let mut full_string = vec!['1'; 28];
+            full_string.append(&mut and_bitmask_str_36_bits);
+            full_string.iter().collect()
+        };
+
+        let or_bitmask = u64::from_str_radix(&or_bitmask_string, 2);
+        let and_bitmask = u64::from_str_radix(&and_bitmask_string, 2);
+        or_bitmask.and_then(|or_bitmask| {
+            and_bitmask.map(|and_bitmask| Mask {
+                or_bitmask,
+                and_bitmask,
+            })
+        })
+    }
+
+    fn apply(&self, i: u64) -> u64 {
+        (i | self.or_bitmask) & self.and_bitmask
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 struct MemSet {
     idx: usize,
@@ -33,39 +72,7 @@ fn parse(s: &str) -> StdResult<Vec<Group>, easy::ParseError<&str>> {
         .with(char('='))
         .with(spaces())
         .with(many::<String, _, _>(one_of("X01".chars())))
-        .and_then(|string| {
-            let (mut or_bitmask_vec_36_bits, mut and_bitmask_str_36_bits) =
-                string.chars().enumerate().fold(
-                    (vec!['0'; 36], vec!['1'; 36]),
-                    |(mut or_bitmask_str, mut and_bitmask_str), (idx, next_char)| {
-                        match next_char {
-                            '1' => or_bitmask_str[idx] = '1',
-                            '0' => and_bitmask_str[idx] = '0',
-                            _ => (),
-                        }
-                        (or_bitmask_str, and_bitmask_str)
-                    },
-                );
-            let or_bitmask_string: String = {
-                let mut full_string = vec!['0'; 28];
-                full_string.append(&mut or_bitmask_vec_36_bits);
-                full_string.iter().collect()
-            };
-            let and_bitmask_string: String = {
-                let mut full_string = vec!['1'; 28];
-                full_string.append(&mut and_bitmask_str_36_bits);
-                full_string.iter().collect()
-            };
-
-            let or_bitmask = u64::from_str_radix(&or_bitmask_string, 2);
-            let and_bitmask = u64::from_str_radix(&and_bitmask_string, 2);
-            or_bitmask.and_then(|or_bitmask| {
-                and_bitmask.map(|and_bitmask| Mask {
-                    or_bitmask,
-                    and_bitmask,
-                })
-            })
-        });
+        .and_then(|s| Mask::from_str(&s));
 
     let mem_set_parser = attempt(string("mem["))
         .with(idx_parser())
@@ -131,6 +138,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mask_test() {
+        let m = Mask::from_str("XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X").unwrap();
+        let r1 = m.apply(11);
+        assert_eq!(73, r1);
+        let r2 = m.apply(101);
+        assert_eq!(101, r2);
+        let r3 = m.apply(0);
+        assert_eq!(64, r3);
+    }
 
     #[test]
     fn parse_test() {
