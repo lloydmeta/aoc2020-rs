@@ -151,12 +151,11 @@ impl Mask {
                 xor_masks_at_length
             })
             .unique();
-        let mut xored_combinations = xor_masks
+        let mut xored_combinations: Vec<_> = xor_masks
             .map(|or_mask| (initial_ored_value ^ or_mask) as usize)
             .collect();
-        let mut values = vec![initial_ored_value as usize];
-        values.append(&mut xored_combinations);
-        values
+        xored_combinations.push(initial_ored_value as usize);
+        xored_combinations
     }
 }
 
