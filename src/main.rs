@@ -8,19 +8,7 @@ use std::str::FromStr;
 use anyhow::Result;
 use clap::{App, Arg, ArgMatches};
 
-use aoc_2020::day_01;
-use aoc_2020::day_02;
-use aoc_2020::day_03;
-use aoc_2020::day_04;
-use aoc_2020::day_05;
-use aoc_2020::day_06;
-use aoc_2020::day_07;
-use aoc_2020::day_08;
-use aoc_2020::day_09;
-use aoc_2020::day_10;
-use aoc_2020::day_11;
-use aoc_2020::day_12;
-use aoc_2020::day_13;
+use aoc_2020::*;
 
 fn main() -> Result<()> {
     let matches = App::new("Advent of Code 2020")
@@ -48,6 +36,7 @@ fn main() -> Result<()> {
         11 => day_11::run()?,
         12 => day_12::run()?,
         13 => day_13::run()?,
+        14 => day_14::run()?,
 
         other => anyhow::bail!(format!("Invalid day: {}", other)),
     }

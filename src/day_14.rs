@@ -1,12 +1,50 @@
 use anyhow::Result;
 use combine::easy;
+use combine::lib::collections::HashMap;
 use combine::parser::char::*;
 use combine::*;
-use num::integer::lcm;
 use std::num::ParseIntError;
 use std::result::Result as StdResult;
 
 const INPUT: &str = include_str!("../data/day_14_input");
+
+pub fn run() -> Result<()> {
+    println!("*** Day 14: Docking Data ***");
+    println!("Input: {}", INPUT);
+    let groups = parse(INPUT)?;
+    let simulation = Simulation::new(groups);
+
+    println!("Solution 1: {:?}", simulation.solution_1());
+
+    Ok(())
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct Simulation {
+    memory_space: HashMap<usize, u64>,
+    groups: Vec<Group>,
+}
+
+impl Simulation {
+    fn new(groups: Vec<Group>) -> Simulation {
+        Simulation {
+            memory_space: HashMap::new(),
+            groups,
+        }
+    }
+
+    fn solution_1(mut self) -> u64 {
+        for group in self.groups.iter() {
+            for mem_set in group.mem_sets.iter() {
+                let mem_set_masked_value = group.mask.apply(mem_set.value);
+                self.memory_space.insert(mem_set.idx, mem_set_masked_value);
+            }
+        }
+        self.memory_space
+            .iter()
+            .fold(0, |acc, (_, next)| acc + next)
+    }
+}
 
 #[derive(Debug, Eq, PartialEq)]
 struct Mask {
@@ -213,5 +251,17 @@ mem[18] = 10
 
         let actual_data = parse(INPUT).unwrap();
         assert!(!actual_data.is_empty())
+    }
+
+    #[test]
+    fn solution_1_test() {
+        let input = "mask = XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X
+mem[8] = 11
+mem[7] = 101
+mem[8] = 0
+";
+        let groups = parse(input).unwrap();
+        let simulation = Simulation::new(groups);
+        assert_eq!(165, simulation.solution_1());
     }
 }
