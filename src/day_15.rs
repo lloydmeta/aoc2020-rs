@@ -1,5 +1,5 @@
-use combine::lib::collections::HashMap;
 use anyhow::Result;
+use combine::lib::collections::HashMap;
 
 const INPUT: &str = include_str!("../data/day_15_input");
 
@@ -17,7 +17,12 @@ pub fn run() -> Result<()> {
 }
 
 fn parse(s: &str) -> Result<Game> {
-    let nums = s.trim().split(',').into_iter().filter_map(|s| s.parse::<usize>().ok()).collect();
+    let nums = s
+        .trim()
+        .split(',')
+        .into_iter()
+        .filter_map(|s| s.parse::<usize>().ok())
+        .collect();
     Ok(Game::new(nums))
 }
 
@@ -85,7 +90,7 @@ mod tests {
     #[test]
     fn parse_test() {
         let r = parse("11,0,1,10,5,19").unwrap();
-        assert_eq!(vec![11,0,1,10,5,19], r.initial_numbers);
+        assert_eq!(vec![11, 0, 1, 10, 5, 19], r.initial_numbers);
     }
 
     #[test]
@@ -106,7 +111,6 @@ mod tests {
         assert_eq!(0, game.clone().nth_number(8).unwrap());
         assert_eq!(4, game.clone().nth_number(9).unwrap());
         assert_eq!(0, game.clone().nth_number(10).unwrap());
-
 
         assert_eq!(1, Game::new(vec![1, 3, 2]).nth_number(2020).unwrap());
         assert_eq!(10, Game::new(vec![2, 1, 3]).nth_number(2020).unwrap());
