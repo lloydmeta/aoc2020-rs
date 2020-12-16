@@ -8,11 +8,29 @@ use std::num::ParseIntError;
 use std::ops::RangeInclusive;
 use std::result::Result as StdResult;
 
+const INPUT: &str = include_str!("../data/day_16_input");
+
+pub fn run() -> Result<()> {
+    println!("*** Day 16: Ticket Translation ***");
+    println!("Input: {}", INPUT);
+    let data = parse(INPUT)?;
+
+    println!("Solution 1: {:?}", data.solution_1());
+
+    Ok(())
+}
+
 #[derive(Debug, Eq, PartialEq)]
 struct Rule {
     name: String,
     range_1: RangeInclusive<usize>,
     range_2: RangeInclusive<usize>,
+}
+
+impl Rule {
+    fn is_valid(&self, check: usize) -> bool {
+        self.range_1.contains(&check) || self.range_2.contains(&check)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -25,11 +43,25 @@ struct Data {
     nearby_tickets: Vec<Ticket>,
 }
 
+impl Data {
+
+    fn solution_1(&self) -> usize {
+        self.nearby_tickets
+            .iter()
+            .flat_map(|ticket| {
+                ticket
+                    .0
+                    .iter()
+                    .filter(|value| !self.rules.iter().any(|rule| rule.is_valid(**value)))
+            })
+            .sum()
+    }
+}
+
 fn parse(s: &str) -> StdResult<Data, easy::ParseError<&str>> {
     // ugh
 
     let split: Vec<_> = s.trim().split("\n\n").collect();
-    println!("split {:?}", split);
 
     let (rules, _) = rules_parser().easy_parse(split[0])?;
 
@@ -119,7 +151,6 @@ where
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -189,5 +220,24 @@ nearby tickets:
             ],
         };
         assert_eq!(expected, r)
+    }
+
+    #[test]
+    fn solution_1_test() {
+        let input = "class: 1-3 or 5-7
+row: 6-11 or 33-44
+seat: 13-40 or 45-50
+
+your ticket:
+7,1,14
+
+nearby tickets:
+7,3,47
+40,4,50
+55,2,20
+38,6,12
+";
+        let r = parse(input).unwrap();
+        assert_eq!(71, r.solution_1())
     }
 }
