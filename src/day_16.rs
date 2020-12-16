@@ -1,9 +1,9 @@
 use anyhow::Result;
 use combine::easy;
-use combine::lib::collections::HashMap;
+use combine::lib::collections::{HashMap, HashSet};
 use combine::parser::char::*;
 use combine::*;
-use itertools::Itertools;
+use std::collections::hash_map::Entry;
 use std::num::ParseIntError;
 use std::ops::RangeInclusive;
 use std::result::Result as StdResult;
@@ -16,6 +16,7 @@ pub fn run() -> Result<()> {
     let data = parse(INPUT)?;
 
     println!("Solution 1: {:?}", data.solution_1());
+    println!("Solution 2: {:?}", data.solution_2());
 
     Ok(())
 }
@@ -44,7 +45,6 @@ struct Data {
 }
 
 impl Data {
-
     fn solution_1(&self) -> usize {
         self.nearby_tickets
             .iter()
@@ -55,6 +55,99 @@ impl Data {
                     .filter(|value| !self.rules.iter().any(|rule| rule.is_valid(**value)))
             })
             .sum()
+    }
+
+    fn solution_2(&self) -> usize {
+        let mappings = self.field_idx_to_valid_rules();
+        let mappings_that_start_with_departure = mappings
+            .iter()
+            .filter(|(_, (_, rule_name))| rule_name.starts_with("departure"));
+        mappings_that_start_with_departure.fold(1, |acc, (field_idx, _)| {
+            if let Some(value) = self.your_ticket.0.get(*field_idx) {
+                acc * value
+            } else {
+                acc
+            }
+        })
+    }
+
+    fn field_idx_to_valid_rules(&self) -> HashMap<usize, (usize, &str)> {
+        // prune invalid tickets
+
+        let valid_tickets = self.nearby_tickets.iter().filter(|ticket| {
+            let first_invalid_value = ticket
+                .0
+                .iter()
+                .find(|value| !self.rules.iter().any(|rule| rule.is_valid(**value)));
+            first_invalid_value.is_none()
+        });
+
+        let mut value_idx_to_possible_rule_names =
+            valid_tickets.fold(HashMap::new(), |mut acc, ticket| {
+                for (field_idx, value) in ticket.0.iter().enumerate() {
+                    let valid_rule_names = self
+                        .rules
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(rule_idx, rule)| {
+                            if rule.is_valid(*value) {
+                                Some((rule_idx, rule.name.as_ref()))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    match acc.entry(field_idx) {
+                        Entry::Occupied(existing) => {
+                            let existing_entry: &mut HashSet<(usize, &str)> = existing.into_mut();
+                            *existing_entry = existing_entry
+                                .intersection(&valid_rule_names)
+                                .copied()
+                                .collect();
+                        }
+                        Entry::Vacant(v) => {
+                            v.insert(valid_rule_names);
+                        }
+                    }
+                }
+                acc
+            });
+
+        while value_idx_to_possible_rule_names
+            .iter()
+            .any(|(_, v)| v.len() > 1)
+        {
+            let field_idx_to_single_rule_idx: HashMap<_, _> = value_idx_to_possible_rule_names
+                .iter()
+                .filter_map(|(k, v)| {
+                    if v.len() == 1 {
+                        v.iter().last().copied().map(|p| (*k, p.0))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            let rule_idx_bound_to_single_field_idx: HashSet<usize> =
+                field_idx_to_single_rule_idx.values().copied().collect();
+            for (_, rule_idx_and_name) in value_idx_to_possible_rule_names
+                .iter_mut()
+                .filter(|(field_idx, _)| !field_idx_to_single_rule_idx.contains_key(field_idx))
+            {
+                rule_idx_and_name
+                    .retain(|(rule_idx, _)| !rule_idx_bound_to_single_field_idx.contains(rule_idx))
+            }
+        }
+
+        value_idx_to_possible_rule_names
+            .into_iter()
+            .filter_map(|(k, v)| {
+                if let Some(v) = v.into_iter().last() {
+                    Some((k, v))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
@@ -239,5 +332,27 @@ nearby tickets:
 ";
         let r = parse(input).unwrap();
         assert_eq!(71, r.solution_1())
+    }
+
+    #[test]
+    fn field_rules_test() {
+        let input = "class: 0-1 or 4-19
+row: 0-5 or 8-19
+seat: 0-13 or 16-19
+
+your ticket:
+11,12,13
+
+nearby tickets:
+3,9,18
+15,1,5
+5,14,9
+";
+        let data = parse(input).unwrap();
+        let mappings = data.field_idx_to_valid_rules();
+
+        assert_eq!("row", mappings.get(&0).unwrap().1);
+        assert_eq!("class", mappings.get(&1).unwrap().1);
+        assert_eq!("seat", mappings.get(&2).unwrap().1);
     }
 }
