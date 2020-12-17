@@ -126,11 +126,17 @@ impl ThreeDimensionalGrid {
                     let mut point_touches = neighbours(*x, *y, *z).to_vec();
                     point_touches.push((*x, *y, *z));
                     // check if neighbours need to be turned off /o n
-                    for (neighbour_x, neighbour_y, neighbour_z) in point_touches.iter() {
-                        let is_neighbour_on =
-                            is_on(&current_ons, *neighbour_x, *neighbour_y, *neighbour_z);
-                        let neighbours_of_neighbours_on =
-                            neighbours(*neighbour_x, *neighbour_y, *neighbour_z)
+                    for (point_to_check_x, point_to_check_y, point_to_check_z) in
+                        point_touches.iter()
+                    {
+                        let is_neighbour_on = is_on(
+                            &current_ons,
+                            *point_to_check_x,
+                            *point_to_check_y,
+                            *point_to_check_z,
+                        );
+                        let point_to_check_neighbours_on_count =
+                            neighbours(*point_to_check_x, *point_to_check_y, *point_to_check_z)
                                 .iter()
                                 .filter(
                                     |(
@@ -148,15 +154,28 @@ impl ThreeDimensionalGrid {
                                 )
                                 .count();
                         if is_neighbour_on {
-                            if neighbours_of_neighbours_on == 2 || neighbours_of_neighbours_on == 3
+                            if point_to_check_neighbours_on_count == 2
+                                || point_to_check_neighbours_on_count == 3
                             {
-                                self.turn_on(*neighbour_x, *neighbour_y, *neighbour_z);
+                                self.turn_on(
+                                    *point_to_check_x,
+                                    *point_to_check_y,
+                                    *point_to_check_z,
+                                );
                             } else {
-                                self.turn_off(*neighbour_x, *neighbour_y, *neighbour_z);
+                                self.turn_off(
+                                    *point_to_check_x,
+                                    *point_to_check_y,
+                                    *point_to_check_z,
+                                );
                             }
                         } else {
-                            if neighbours_of_neighbours_on == 3 {
-                                self.turn_on(*neighbour_x, *neighbour_y, *neighbour_z);
+                            if point_to_check_neighbours_on_count == 3 {
+                                self.turn_on(
+                                    *point_to_check_x,
+                                    *point_to_check_y,
+                                    *point_to_check_z,
+                                );
                             }
                         }
                     }
