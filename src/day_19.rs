@@ -5,16 +5,38 @@ use combine::*;
 use std::num::ParseIntError;
 use std::result::Result as StdResult;
 
+const INPUT: &str = include_str!("../data/day_19_input");
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 enum Rule {
     Letter(char),
+    // usize represents the "index" of the rule being referenced
     AlternativeReferenceSequences(Vec<Vec<usize>>),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct RulesWithMessages {
+    rules: Rules,
+    messages: Vec<String>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 struct Rules(Vec<Rule>);
 
-fn parse(s: &str) -> StdResult<Rules, easy::ParseError<&str>> {
+fn parse(s: &str) -> StdResult<RulesWithMessages, easy::ParseError<&str>> {
+    let rules_with_messages: Vec<_> = s.trim().split("\n\n").collect();
+
+    let rules = parse_rules(rules_with_messages[0])?;
+
+    let messages = rules_with_messages[1]
+        .split('\n')
+        .map(|s| s.to_string())
+        .collect();
+
+    Ok(RulesWithMessages { rules, messages })
+}
+
+fn parse_rules(s: &str) -> StdResult<Rules, easy::ParseError<&str>> {
     let idx_parser = number().skip(char(':')).map(|idx| {
         println!("parsed index [{}]", idx);
         idx
@@ -123,13 +145,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn day_19_single_parse_test() {
+    fn day_19_parse_rules_test() {
         let input = r#"0: 1 2
 1: "a"
 2: 1 3 | 3 1
 3: "b"
 "#;
-        let r = parse(input).unwrap();
+        let r = parse_rules(input).unwrap();
 
         let expected = Rules(vec![
             Rule::AlternativeReferenceSequences(vec![vec![1, 2]]),
@@ -139,5 +161,11 @@ mod tests {
         ]);
 
         assert_eq!(expected, r)
+    }
+
+    #[test]
+    fn parse_input_test() {
+        let r = parse(INPUT).unwrap();
+        assert!(!r.rules.0.is_empty());
     }
 }
