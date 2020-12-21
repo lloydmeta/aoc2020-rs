@@ -8,11 +8,15 @@ use Manipulate::*;
 use combine::easy;
 use combine::parser::char::*;
 use combine::*;
+use itertools::Itertools;
 use std::num::ParseIntError;
 use std::result::Result as StdResult;
+use std::convert::TryInto;
+
+const INPUT: &str = include_str!("../data/day_20_input");
 
 /// The complete cycle of matrix manipulations that cover all unique transformations
-static MATRIX_MANIPULATIONS: [Manipulate; 8] = [
+static MATRIX_MANIPULATIONS: [Manipulate; 9] = [
     RotateRight,
     RotateRight,
     RotateRight,
@@ -21,9 +25,27 @@ static MATRIX_MANIPULATIONS: [Manipulate; 8] = [
     RotateRight,
     RotateRight,
     RotateRight,
+    FlipHorizontal,
 ];
 
 type Coords = (i64, i64); // (x, y)
+
+pub fn run() -> Result<()> {
+    println!("*** Day 20: Jurassic Jigsaw ***");
+    println!("Input: {}", INPUT);
+
+    let mut image = parse(INPUT)?;
+    let sol_1 = solution_1(&mut image)?;
+
+    println!("Solution 1: {}", sol_1);
+
+    Ok(())
+}
+
+fn solution_1(img: &mut OverallImage) -> Result<usize> {
+    img.solve()?;
+    Ok(img.corner_tiles()?.iter().map(|(idx, _)| *idx).product())
+}
 
 fn parse(s: &str) -> StdResult<OverallImage, easy::ParseError<&str>> {
     let tile_idx_to_image =
@@ -42,25 +64,25 @@ fn parse(s: &str) -> StdResult<OverallImage, easy::ParseError<&str>> {
     })
 }
 
-fn tile_with_idx_parser<Input>() -> impl Parser<Input, Output = (usize, ImageTile)>
-where
-    Input: Stream<Token = char>,
-    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-    <<Input as StreamOnce>::Error as combine::ParseError<
-        char,
-        <Input as StreamOnce>::Range,
-        <Input as StreamOnce>::Position,
-    >>::StreamError: From<ParseIntError>,
-    <<Input as StreamOnce>::Error as combine::ParseError<
-        char,
-        <Input as StreamOnce>::Range,
-        <Input as StreamOnce>::Position,
-    >>::StreamError: From<ParseIntError>,
-    <Input as combine::StreamOnce>::Error: combine::ParseError<
-        char,
-        <Input as combine::StreamOnce>::Range,
-        <Input as combine::StreamOnce>::Position,
-    >,
+fn tile_with_idx_parser<Input>() -> impl Parser<Input, Output=(usize, ImageTile)>
+    where
+        Input: Stream<Token=char>,
+        Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+        <<Input as StreamOnce>::Error as combine::ParseError<
+            char,
+            <Input as StreamOnce>::Range,
+            <Input as StreamOnce>::Position,
+        >>::StreamError: From<ParseIntError>,
+        <<Input as StreamOnce>::Error as combine::ParseError<
+            char,
+            <Input as StreamOnce>::Range,
+            <Input as StreamOnce>::Position,
+        >>::StreamError: From<ParseIntError>,
+        <Input as combine::StreamOnce>::Error: combine::ParseError<
+            char,
+            <Input as combine::StreamOnce>::Range,
+            <Input as combine::StreamOnce>::Position,
+        >,
 {
     let tile_idx_parser = string("Tile ").with(number()).skip(char(':'));
     let pixel_parser = char('#')
@@ -75,25 +97,25 @@ where
     tile_idx_parser.skip(newline()).and(matrix_parser)
 }
 
-fn number<Input>() -> impl Parser<Input, Output = usize>
-where
-    Input: Stream<Token = char>,
-    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-    <<Input as StreamOnce>::Error as combine::ParseError<
-        char,
-        <Input as StreamOnce>::Range,
-        <Input as StreamOnce>::Position,
-    >>::StreamError: From<ParseIntError>,
-    <<Input as StreamOnce>::Error as combine::ParseError<
-        char,
-        <Input as StreamOnce>::Range,
-        <Input as StreamOnce>::Position,
-    >>::StreamError: From<ParseIntError>,
-    <Input as combine::StreamOnce>::Error: combine::ParseError<
-        char,
-        <Input as combine::StreamOnce>::Range,
-        <Input as combine::StreamOnce>::Position,
-    >,
+fn number<Input>() -> impl Parser<Input, Output=usize>
+    where
+        Input: Stream<Token=char>,
+        Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+        <<Input as StreamOnce>::Error as combine::ParseError<
+            char,
+            <Input as StreamOnce>::Range,
+            <Input as StreamOnce>::Position,
+        >>::StreamError: From<ParseIntError>,
+        <<Input as StreamOnce>::Error as combine::ParseError<
+            char,
+            <Input as StreamOnce>::Range,
+            <Input as StreamOnce>::Position,
+        >>::StreamError: From<ParseIntError>,
+        <Input as combine::StreamOnce>::Error: combine::ParseError<
+            char,
+            <Input as combine::StreamOnce>::Range,
+            <Input as combine::StreamOnce>::Position,
+        >,
 {
     many::<String, _, _>(digit()).and_then(|d| d.parse::<usize>())
 }
@@ -105,37 +127,49 @@ struct OverallImage {
 }
 
 impl OverallImage {
-    fn corner_tiles(&self) -> impl Iterator<Item = (&usize, &ImageTile)> {
-        self.tiles.iter().filter(|(_, tile)| {
-            if let Some(neighbours) = &tile.neighbours_indices {
-                neighbours.len() == 2
-            } else {
-                false
-            }
-        })
+    fn corner_tiles(&self) -> Result<[(&usize, &ImageTile); 4]> {
+        let v: Vec<_> = self.tiles
+            .iter()
+            .filter(|(_, tile)| {
+                if let Some(neighbours) = &tile.neighbours_indices {
+                    neighbours.len() == 2
+                } else {
+                    false
+                }
+            })
+            .sorted_by_key(|(idx, _)| **idx)
+            .collect();
+        let arr_or_err: Result<[(&usize, &ImageTile); 4], _> = v.try_into();
+        match arr_or_err {
+            Ok(r) => Ok(r),
+            Err(e) => anyhow::bail!("This was not a 4 element thing [{:?}]", e)
+        }
     }
 
     fn solve(&mut self) -> Result<()> {
         if self.tiles.len() == self.coords_to_tile_idx.len() {
-            ()
+            debug!("Skipping .. already solved");
         } else if let Some((first_idx, tile)) = self
             .tiles
             .iter_mut()
             .find(|(_, tile)| tile.coords.is_none() && tile.neighbours_indices.is_none())
         {
             let init_coords = (0, 0);
+            self.coords_to_tile_idx.insert(init_coords, *first_idx);
             tile.coords = Some(init_coords);
             let mut queue = vec![*first_idx];
-            self.inner_solve(&mut queue)?;
+            debug!("about to start inner solve");
+            self.inner_solve(&mut queue)?
         }
         Ok(())
     }
 
     fn inner_solve(&mut self, tile_idx_queue: &mut Vec<usize>) -> Result<()> {
-        while let Some(current_tile_idx_id) = tile_idx_queue.pop() {
+        while let Some(current_tile_idx) = tile_idx_queue.pop() {
+            debug!("working on {}", current_tile_idx);
             let tile_under_consideration_non_mut = self
                 .tiles
-                .get(&current_tile_idx_id)
+                .get(&current_tile_idx)
                 .context("Tile should exist")?;
 
             // We can safely assume that coords for the current tile has already been assigned
@@ -164,8 +198,14 @@ impl OverallImage {
                     .filter_map(
                         |(relative_to_self_edge_name, (neighbour_coords, self_edge_pattern))| {
                             if let Some(already_placed_tile_idx) =
-                                self.coords_to_tile_idx.get(&neighbour_coords)
+                            self.coords_to_tile_idx.get(&neighbour_coords)
                             {
+                                debug!(
+                                    "found already-placed [{:?}] neighbour [{}] for [{}]",
+                                    relative_to_self_edge_name,
+                                    already_placed_tile_idx,
+                                    current_tile_idx
+                                );
                                 current_tile_neighbours_map
                                     .insert(relative_to_self_edge_name, *already_placed_tile_idx);
 
@@ -181,17 +221,17 @@ impl OverallImage {
                     .collect();
 
             'tile_candidate: for (tile_candidate_idx, tile_candidate) in self.tiles.iter_mut() {
-                if *tile_candidate_idx != current_tile_idx_id // Not current
+                if *tile_candidate_idx != current_tile_idx // Not current
                     // has not yet been considered: prevent us from manipulating already-placed tiles
-                    && current_tile_neighbours_map.values().collect::<HashSet<_>>().contains(tile_candidate_idx)
+                    && !current_tile_neighbours_map.values().collect::<HashSet<_>>().contains(tile_candidate_idx)
                     && tile_candidate.coords.is_none()
                 /* means it hasn't been processed*/
                 {
                     for image_manipulation in MATRIX_MANIPULATIONS.iter() {
                         tile_candidate.image.modify_image(image_manipulation);
                         for (self_side, (neighbour_coords, self_edge)) in
-                            unassigned_tile_sides_with_neighbour_idx_and_required_side_patterns
-                                .iter()
+                        unassigned_tile_sides_with_neighbour_idx_and_required_side_patterns
+                            .iter()
                         {
                             if !current_tile_neighbours_map.contains_key(&self_side) {
                                 let candidate_side_name = match self_side {
@@ -230,8 +270,12 @@ impl OverallImage {
             }
             let tile_under_consideration_mut = self
                 .tiles
-                .get_mut(&current_tile_idx_id)
+                .get_mut(&current_tile_idx)
                 .context("Tile should exist")?;
+            debug!(
+                "neighbours for [{}]: [{:?}]",
+                current_tile_idx, current_tile_neighbours_map
+            );
             tile_under_consideration_mut.neighbours_indices = Some(current_tile_neighbours_map);
         }
 
@@ -267,7 +311,7 @@ impl ImageTile {
             Top => ((self_x, self_y + 1), self.image.get_edge(&Top)?),
             Right => ((self_x + 1, self_y), self.image.get_edge(&Right)?),
             Bottom => ((self_x, self_y - 1), self.image.get_edge(&Bottom)?),
-            Left => ((self_x - 1, self_y - 1), self.image.get_edge(&Left)?),
+            Left => ((self_x - 1, self_y), self.image.get_edge(&Left)?),
         };
         Some(neighbour_coords_with_edge)
     }
@@ -289,21 +333,10 @@ enum Manipulate {
 struct MonochromeSquare(Vec<Vec<Pixel>>);
 
 impl MonochromeSquare {
-    fn get_edges(&self) -> HashMap<NeighbourRelativeToSelf, Vec<Pixel>> {
-        [Top, Right, Bottom, Right]
-            .iter()
-            .fold(HashMap::new(), |mut acc, next| {
-                if let Some(edge) = self.get_edge(next) {
-                    acc.insert(*next, edge);
-                }
-                acc
-            })
-    }
-
     fn get_edge(&self, rel: &NeighbourRelativeToSelf) -> Option<Vec<Pixel>> {
-        match rel {
-            &Top => self.0.first().cloned(),
-            &Right => {
+        match *rel {
+            Top => self.0.first().cloned(),
+            Right => {
                 let t = self
                     .0
                     .iter()
@@ -311,8 +344,8 @@ impl MonochromeSquare {
                     .collect();
                 Some(t)
             }
-            &Bottom => self.0.last().cloned(),
-            &Left => {
+            Bottom => self.0.last().cloned(),
+            Left => {
                 let t = self
                     .0
                     .iter()
@@ -323,9 +356,9 @@ impl MonochromeSquare {
         }
     }
     fn modify_image(&mut self, manipulation: &Manipulate) {
-        match manipulation {
-            &Manipulate::RotateRight => rotate_right_square(&mut self.0),
-            &Manipulate::FlipHorizontal => flip_horizontal_square(&mut self.0),
+        match *manipulation {
+            Manipulate::RotateRight => rotate_right_square(&mut self.0),
+            Manipulate::FlipHorizontal => flip_horizontal_square(&mut self.0),
         }
     }
 }
@@ -354,7 +387,6 @@ fn flip_horizontal_square<X>(mat: &mut Vec<Vec<X>>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Pixel::*;
 
     #[test]
     fn rotate_square_test() {
@@ -405,6 +437,13 @@ mod tests {
                 assert_eq!(10, row.len())
             }
         }
+    }
+
+    #[test]
+    fn solution_1_test() {
+        let mut r = parse(TEST_INPUT).unwrap();
+        let r = solution_1(&mut r).unwrap();
+        assert_eq!(20899048083289, r);
     }
 
     const TEST_INPUT: &str = "Tile 2311:
