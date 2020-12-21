@@ -11,6 +11,7 @@ use clap::{App, Arg, ArgMatches};
 use aoc_2020::*;
 
 fn main() -> Result<()> {
+    pretty_env_logger::init();
     let matches = App::new("Advent of Code 2020")
         .version(version().as_str())
         .about("Solutions to AoC 2020 !")
@@ -42,6 +43,7 @@ fn main() -> Result<()> {
         17 => day_17::run()?,
         18 => day_18::run()?,
         19 => day_19::run()?,
+        20 => day_20::run()?,
 
         other => anyhow::bail!(format!("Invalid day: {}", other)),
     }

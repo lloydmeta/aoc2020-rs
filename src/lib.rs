@@ -3,6 +3,9 @@ extern crate combine;
 extern crate itertools;
 
 #[macro_use]
+extern crate log;
+
+#[macro_use]
 mod common;
 pub mod day_01;
 pub mod day_02;
@@ -23,3 +26,4 @@ pub mod day_16;
 pub mod day_17;
 pub mod day_18;
 pub mod day_19;
+pub mod day_20;
