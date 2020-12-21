@@ -6,12 +6,15 @@ use combine::lib::collections::HashSet;
 use Manipulate::*;
 
 use combine::easy;
+use combine::lib::fmt::Formatter;
 use combine::parser::char::*;
 use combine::*;
 use itertools::Itertools;
+use num::integer::Roots;
+use std::convert::TryInto;
+use std::fmt;
 use std::num::ParseIntError;
 use std::result::Result as StdResult;
-use std::convert::TryInto;
 
 const INPUT: &str = include_str!("../data/day_20_input");
 
@@ -64,25 +67,25 @@ fn parse(s: &str) -> StdResult<OverallImage, easy::ParseError<&str>> {
     })
 }
 
-fn tile_with_idx_parser<Input>() -> impl Parser<Input, Output=(usize, ImageTile)>
-    where
-        Input: Stream<Token=char>,
-        Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-        <<Input as StreamOnce>::Error as combine::ParseError<
-            char,
-            <Input as StreamOnce>::Range,
-            <Input as StreamOnce>::Position,
-        >>::StreamError: From<ParseIntError>,
-        <<Input as StreamOnce>::Error as combine::ParseError<
-            char,
-            <Input as StreamOnce>::Range,
-            <Input as StreamOnce>::Position,
-        >>::StreamError: From<ParseIntError>,
-        <Input as combine::StreamOnce>::Error: combine::ParseError<
-            char,
-            <Input as combine::StreamOnce>::Range,
-            <Input as combine::StreamOnce>::Position,
-        >,
+fn tile_with_idx_parser<Input>() -> impl Parser<Input, Output = (usize, ImageTile)>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <Input as combine::StreamOnce>::Error: combine::ParseError<
+        char,
+        <Input as combine::StreamOnce>::Range,
+        <Input as combine::StreamOnce>::Position,
+    >,
 {
     let tile_idx_parser = string("Tile ").with(number()).skip(char(':'));
     let pixel_parser = char('#')
@@ -97,25 +100,25 @@ fn tile_with_idx_parser<Input>() -> impl Parser<Input, Output=(usize, ImageTile)
     tile_idx_parser.skip(newline()).and(matrix_parser)
 }
 
-fn number<Input>() -> impl Parser<Input, Output=usize>
-    where
-        Input: Stream<Token=char>,
-        Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-        <<Input as StreamOnce>::Error as combine::ParseError<
-            char,
-            <Input as StreamOnce>::Range,
-            <Input as StreamOnce>::Position,
-        >>::StreamError: From<ParseIntError>,
-        <<Input as StreamOnce>::Error as combine::ParseError<
-            char,
-            <Input as StreamOnce>::Range,
-            <Input as StreamOnce>::Position,
-        >>::StreamError: From<ParseIntError>,
-        <Input as combine::StreamOnce>::Error: combine::ParseError<
-            char,
-            <Input as combine::StreamOnce>::Range,
-            <Input as combine::StreamOnce>::Position,
-        >,
+fn number<Input>() -> impl Parser<Input, Output = usize>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <Input as combine::StreamOnce>::Error: combine::ParseError<
+        char,
+        <Input as combine::StreamOnce>::Range,
+        <Input as combine::StreamOnce>::Position,
+    >,
 {
     many::<String, _, _>(digit()).and_then(|d| d.parse::<usize>())
 }
@@ -128,7 +131,8 @@ struct OverallImage {
 
 impl OverallImage {
     fn corner_tiles(&self) -> Result<[(&usize, &ImageTile); 4]> {
-        let v: Vec<_> = self.tiles
+        let v: Vec<_> = self
+            .tiles
             .iter()
             .filter(|(_, tile)| {
                 if let Some(neighbours) = &tile.neighbours_indices {
@@ -142,8 +146,36 @@ impl OverallImage {
         let arr_or_err: Result<[(&usize, &ImageTile); 4], _> = v.try_into();
         match arr_or_err {
             Ok(r) => Ok(r),
-            Err(e) => anyhow::bail!("This was not a 4 element thing [{:?}]", e)
+            Err(e) => anyhow::bail!("This was not a 4 element thing [{:?}]", e),
         }
+    }
+
+    fn upper_left(&self) -> Result<(&usize, &ImageTile)> {
+        let corners = self.corner_tiles()?;
+        corners
+            .iter()
+            .fold(
+                None,
+                |acc: Option<(&usize, &ImageTile)>, (next_idx, next_tile)| match acc {
+                    Some((acc_idx, acc_tile)) => {
+                        if let Some((acc_x, acc_y)) = acc_tile.coords {
+                            if let Some((next_x, next_y)) = next_tile.coords {
+                                if next_x <= acc_x && next_y >= acc_y {
+                                    Some((*next_idx, *next_tile))
+                                } else {
+                                    Some((acc_idx, acc_tile))
+                                }
+                            } else {
+                                Some((acc_idx, acc_tile))
+                            }
+                        } else {
+                            Some((acc_idx, acc_tile))
+                        }
+                    }
+                    None => Some((*next_idx, *next_tile)),
+                },
+            )
+            .context("No upper left corner found")
     }
 
     fn solve(&mut self) -> Result<()> {
@@ -198,7 +230,7 @@ impl OverallImage {
                     .filter_map(
                         |(relative_to_self_edge_name, (neighbour_coords, self_edge_pattern))| {
                             if let Some(already_placed_tile_idx) =
-                            self.coords_to_tile_idx.get(&neighbour_coords)
+                                self.coords_to_tile_idx.get(&neighbour_coords)
                             {
                                 debug!(
                                     "found already-placed [{:?}] neighbour [{}] for [{}]",
@@ -230,8 +262,8 @@ impl OverallImage {
                     for image_manipulation in MATRIX_MANIPULATIONS.iter() {
                         tile_candidate.image.modify_image(image_manipulation);
                         for (self_side, (neighbour_coords, self_edge)) in
-                        unassigned_tile_sides_with_neighbour_idx_and_required_side_patterns
-                            .iter()
+                            unassigned_tile_sides_with_neighbour_idx_and_required_side_patterns
+                                .iter()
                         {
                             if !current_tile_neighbours_map.contains_key(&self_side) {
                                 let candidate_side_name = match self_side {
@@ -299,6 +331,84 @@ struct ImageTile {
 
     // [ top, right, bottom, left]
     neighbours_indices: Option<HashMap<NeighbourRelativeToSelf, usize>>,
+}
+
+#[derive(Debug, PartialEq)]
+struct StitchedTogetherImage(Vec<Vec<Pixel>>);
+
+impl StitchedTogetherImage {
+    fn from(overall: OverallImage) -> Result<StitchedTogetherImage> {
+        let upper_left = overall.upper_left()?;
+        let tiles_per_side = overall.tiles.len().sqrt();
+        let (upper_left_x, upper_left_y) = upper_left
+            .1
+            .coords
+            .context("No coords for upper left corner")?;
+
+        let mut overall_image_vec = vec![];
+
+        for (tile_row_idx, y) in (upper_left_y - tiles_per_side as i64 + 1..=upper_left_y)
+            .rev()
+            .enumerate()
+        {
+            for (tile_col_idx, x) in
+                (upper_left_x..upper_left_x + tiles_per_side as i64).enumerate()
+            {
+                let tile_idx = overall
+                    .coords_to_tile_idx
+                    .get(&(x, y))
+                    .context(format!("Could not find tile idx at {:?}", (x, y)))?;
+                let tile_at_coords = overall.tiles.get(tile_idx).context("No tile found")?;
+
+                // Remove top and bottom borders
+                let image_rows_count = tile_at_coords.image.0.len() - 2;
+                if tile_col_idx == 0 {
+                    // fill in the needed rows for this tile row
+                    for _ in 0..image_rows_count {
+                        overall_image_vec.push(vec![])
+                    }
+                }
+
+                for (image_row_idx, row) in tile_at_coords
+                    .image
+                    .0
+                    .iter()
+                    .skip(1)
+                    .take(tile_at_coords.image.0.len() - 2)
+                    .enumerate()
+                {
+                    for pixel in row.iter().skip(1).take(row.len() - 2) {
+                        overall_image_vec[tile_row_idx * image_rows_count + image_row_idx]
+                            .push(*pixel);
+                    }
+                }
+            }
+        }
+
+        Ok(StitchedTogetherImage(overall_image_vec))
+    }
+
+    fn modify_image(&mut self, manipulation: &Manipulate) {
+        match *manipulation {
+            Manipulate::RotateRight => rotate_right_square(&mut self.0),
+            Manipulate::FlipHorizontal => flip_horizontal_square(&mut self.0),
+        }
+    }
+}
+
+impl fmt::Display for StitchedTogetherImage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for row in self.0.iter() {
+            for pixel in row.iter() {
+                match *pixel {
+                    Pixel::On => write!(f, "#")?,
+                    Pixel::Off => write!(f, ".")?,
+                }
+            }
+            write!(f, "\n")?
+        }
+        Ok(())
+    }
 }
 
 impl ImageTile {
@@ -387,6 +497,7 @@ fn flip_horizontal_square<X>(mat: &mut Vec<Vec<X>>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use Pixel::*;
 
     #[test]
     fn rotate_square_test() {
@@ -444,6 +555,122 @@ mod tests {
         let mut r = parse(TEST_INPUT).unwrap();
         let r = solution_1(&mut r).unwrap();
         assert_eq!(20899048083289, r);
+    }
+
+    #[test]
+    fn stitched_together_image_test() {
+        let mut overall_image = parse(TEST_INPUT).unwrap();
+        overall_image.solve().unwrap();
+        let mut stitched_together = StitchedTogetherImage::from(overall_image).unwrap();
+        assert_eq!(24, stitched_together.0.len());
+        for row in stitched_together.0.iter() {
+            assert_eq!(24, row.len())
+        }
+
+        let expected = StitchedTogetherImage(vec![
+            vec![
+                Off, On, Off, On, Off, Off, On, Off, On, On, Off, Off, Off, On, Off, On, On, Off,
+                Off, On, On, On, On, On,
+            ],
+            vec![
+                On, On, On, Off, Off, Off, Off, On, Off, On, Off, Off, Off, Off, On, Off, Off, On,
+                Off, Off, Off, Off, Off, Off,
+            ],
+            vec![
+                On, On, Off, On, On, Off, On, On, On, Off, On, Off, On, Off, Off, On, On, On, On,
+                On, On, Off, Off, Off,
+            ],
+            vec![
+                On, On, On, Off, On, On, On, On, On, Off, Off, Off, On, Off, On, On, On, On, On,
+                Off, On, Off, Off, On,
+            ],
+            vec![
+                On, On, Off, On, Off, Off, Off, Off, On, Off, On, On, Off, On, On, On, On, Off,
+                Off, Off, On, Off, On, On,
+            ],
+            vec![
+                Off, Off, Off, On, On, On, On, On, On, On, On, Off, On, Off, Off, Off, Off, On, On,
+                On, On, On, Off, On,
+            ],
+            vec![
+                Off, Off, Off, Off, On, Off, Off, On, Off, Off, Off, On, On, Off, Off, On, Off, On,
+                Off, On, On, On, Off, Off,
+            ],
+            vec![
+                Off, On, On, On, On, Off, Off, Off, On, Off, Off, On, Off, Off, Off, Off, Off, On,
+                Off, Off, Off, Off, Off, Off,
+            ],
+            vec![
+                On, Off, Off, On, Off, On, On, Off, Off, On, Off, Off, On, On, On, Off, On, Off,
+                On, On, Off, Off, Off, Off,
+            ],
+            vec![
+                On, Off, On, On, On, On, Off, Off, On, Off, On, On, On, On, Off, On, Off, On, Off,
+                On, On, On, Off, Off,
+            ],
+            vec![
+                On, On, On, Off, On, Off, On, Off, Off, Off, On, Off, On, On, On, On, On, On, Off,
+                On, Off, Off, On, On,
+            ],
+            vec![
+                On, Off, On, On, On, On, Off, Off, Off, Off, On, On, Off, Off, On, On, On, On, On,
+                On, On, On, Off, On,
+            ],
+            vec![
+                On, On, Off, Off, On, On, Off, On, Off, Off, Off, On, Off, Off, Off, On, Off, On,
+                Off, On, Off, On, Off, Off,
+            ],
+            vec![
+                Off, Off, Off, On, Off, Off, On, Off, Off, On, Off, On, Off, On, On, Off, Off, On,
+                On, On, Off, On, On, On,
+            ],
+            vec![
+                Off, On, Off, On, Off, Off, Off, Off, On, Off, On, On, Off, On, Off, Off, Off, On,
+                On, On, Off, On, On, Off,
+            ],
+            vec![
+                On, On, On, Off, On, Off, Off, Off, On, Off, Off, On, Off, On, On, Off, On, On, On,
+                On, On, On, Off, Off,
+            ],
+            vec![
+                Off, On, Off, On, Off, On, On, On, Off, On, On, Off, On, On, Off, On, Off, Off, On,
+                Off, On, On, Off, Off,
+            ],
+            vec![
+                Off, On, On, On, On, Off, On, On, On, Off, On, Off, Off, Off, On, On, On, Off, On,
+                Off, Off, On, Off, On,
+            ],
+            vec![
+                Off, Off, On, Off, On, Off, Off, On, Off, Off, On, Off, On, Off, On, Off, On, On,
+                On, On, Off, On, On, On,
+            ],
+            vec![
+                On, Off, Off, On, On, On, On, Off, Off, Off, On, Off, On, Off, On, Off, On, On, On,
+                Off, On, On, On, Off,
+            ],
+            vec![
+                On, On, On, On, On, Off, Off, On, On, On, On, On, Off, Off, Off, On, On, On, Off,
+                Off, Off, Off, On, On,
+            ],
+            vec![
+                On, Off, On, On, Off, Off, On, Off, Off, On, Off, Off, Off, On, Off, Off, On, On,
+                On, On, Off, Off, Off, On,
+            ],
+            vec![
+                Off, On, Off, On, On, On, Off, Off, On, On, Off, Off, On, On, Off, Off, On, On, On,
+                On, Off, On, On, Off,
+            ],
+            vec![
+                Off, Off, Off, On, On, On, Off, Off, Off, On, On, Off, Off, Off, On, Off, Off, Off,
+                On, Off, Off, On, On, On,
+            ],
+        ]);
+        let can_be_manipulated_into_expected = MATRIX_MANIPULATIONS.iter().any(|manipulation| {
+            stitched_together.modify_image(manipulation);
+            println!("{}", stitched_together);
+            stitched_together == expected
+        });
+        assert!(can_be_manipulated_into_expected)
     }
 
     const TEST_INPUT: &str = "Tile 2311:
