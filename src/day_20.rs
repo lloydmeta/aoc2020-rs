@@ -13,10 +13,13 @@ use itertools::Itertools;
 use num::integer::Roots;
 use std::convert::TryInto;
 use std::fmt;
+use std::iter::FromIterator;
 use std::num::ParseIntError;
 use std::result::Result as StdResult;
 
 const INPUT: &str = include_str!("../data/day_20_input");
+
+const MONSTER_DEF: &str = include_str!("../data/day_20_monster_def");
 
 /// The complete cycle of matrix manipulations that cover all unique transformations
 static MATRIX_MANIPULATIONS: [Manipulate; 9] = [
@@ -42,12 +45,37 @@ pub fn run() -> Result<()> {
 
     println!("Solution 1: {}", sol_1);
 
+    println!("Solution 2: {}", solution_2(image)?);
+
     Ok(())
 }
 
 fn solution_1(img: &mut OverallImage) -> Result<usize> {
     img.solve()?;
     Ok(img.corner_tiles()?.iter().map(|(idx, _)| *idx).product())
+}
+
+fn solution_2(mut img: OverallImage) -> Result<usize> {
+    img.solve()?;
+    let stitched_image = StitchedTogetherImage::from(img)?;
+    let total_on_count = stitched_image.on_count();
+
+    debug!(
+        "Stitched together image before search:\n\n{}",
+        stitched_image
+    );
+
+    let monster_searcher = MonsterSearcher::new(MONSTER_DEF)?;
+
+    let monster_report = monster_searcher.find_monsters_and_report(stitched_image);
+
+    let monster_count = monster_report.monster_count;
+
+    let monster_pixel_count = monster_searcher.on_count() * monster_count;
+
+    debug!("{}", monster_report);
+
+    Ok(total_on_count - monster_pixel_count)
 }
 
 fn parse(s: &str) -> StdResult<OverallImage, easy::ParseError<&str>> {
@@ -385,7 +413,10 @@ impl StitchedTogetherImage {
             }
         }
 
-        Ok(StitchedTogetherImage(overall_image_vec))
+        let r = StitchedTogetherImage(overall_image_vec);
+        debug!("{}", r);
+
+        Ok(r)
     }
 
     fn modify_image(&mut self, manipulation: &Manipulate) {
@@ -393,6 +424,13 @@ impl StitchedTogetherImage {
             Manipulate::RotateRight => rotate_right_square(&mut self.0),
             Manipulate::FlipHorizontal => flip_horizontal_square(&mut self.0),
         }
+    }
+
+    fn on_count(&self) -> usize {
+        self.0
+            .iter()
+            .map(|row| row.iter().filter(|p| **p == Pixel::On).count())
+            .sum()
     }
 }
 
@@ -405,7 +443,7 @@ impl fmt::Display for StitchedTogetherImage {
                     Pixel::Off => write!(f, ".")?,
                 }
             }
-            write!(f, "\n")?
+            writeln!(f)?
         }
         Ok(())
     }
@@ -491,6 +529,157 @@ fn rotate_right_square<X: Copy>(mat: &mut Vec<Vec<X>>) {
 fn flip_horizontal_square<X>(mat: &mut Vec<Vec<X>>) {
     for row in mat.iter_mut() {
         row.reverse()
+    }
+}
+
+struct MonsterSearcher {
+    lateral_length: usize,
+    on_coords_by_row: Vec<Vec<usize>>,
+}
+
+impl MonsterSearcher {
+    fn on_count(&self) -> usize {
+        self.on_coords_by_row.iter().map(|row| row.len()).sum()
+    }
+    fn new(monster_def: &str) -> Result<MonsterSearcher> {
+        let on_coords_by_row = monster_def
+            .split('\n')
+            .map(|line| {
+                line.chars()
+                    .enumerate()
+                    .filter_map(|(idx, char)| if char == '#' { Some(idx) } else { None })
+                    .collect()
+            })
+            .collect();
+
+        let lateral_length = monster_def
+            .split('\n')
+            .map(|l| l.chars().count())
+            .max()
+            .context("empty monster definition")?;
+
+        debug!("on_coords_by_row {:?}", on_coords_by_row);
+        debug!("lateral_length {:?}", lateral_length);
+        Ok(MonsterSearcher {
+            lateral_length,
+            on_coords_by_row,
+        })
+    }
+
+    fn find_monsters_and_report(
+        &self,
+        mut stitched_together_image: StitchedTogetherImage,
+    ) -> MonsterReport {
+        let mut monster_count = 0;
+
+        let mut monster_coords = vec![];
+
+        let monster_height = self.on_coords_by_row.len();
+        for manipulation in MATRIX_MANIPULATIONS.iter() {
+            stitched_together_image.modify_image(manipulation);
+
+            for (row_idx, rows_group) in stitched_together_image
+                .0
+                .iter()
+                .as_slice()
+                .windows(monster_height)
+                .enumerate()
+            {
+                let row_group_slices = rows_group
+                    .iter()
+                    .map(|row| row.as_slice().windows(self.lateral_length));
+
+                let mut match_count_by_window_idx = HashMap::new();
+
+                // Go through each row's windows
+                for (row_idx, row_windows) in row_group_slices.enumerate() {
+                    // Get the searcher for the row
+                    let row_searcher = &self.on_coords_by_row[row_idx];
+
+                    // Go through the row's windows looking for matches for the row
+                    for (col_idx, window) in row_windows.enumerate() {
+                        let window_row_matches = row_searcher.iter().all(|on_coord| {
+                            window.get(*on_coord).filter(|c| **c == Pixel::On).is_some()
+                        });
+                        if window_row_matches {
+                            // Increment that row match count index by 1
+                            *match_count_by_window_idx.entry(col_idx).or_insert(0usize) += 1;
+                        }
+                    }
+                }
+                // Find window indices where the number of matches equals the number of rows
+                let windows_idx_where_all_rows_matched: Vec<_> = match_count_by_window_idx
+                    .iter()
+                    .filter_map(|(window_idx, count)| {
+                        if *count == monster_height {
+                            Some(window_idx)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                for window_col_idx in windows_idx_where_all_rows_matched.iter() {
+                    let mut monster_coords_for_window: Vec<_> = self
+                        .on_coords_by_row
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(monster_row_group_idx, monster_on_columns)| {
+                            let x = row_idx + monster_row_group_idx;
+
+                            monster_on_columns.iter().map(move |on_column| {
+                                (x, *on_column + **window_col_idx /* y*/)
+                            })
+                        })
+                        .collect();
+                    monster_coords.append(&mut monster_coords_for_window)
+                }
+
+                monster_count += windows_idx_where_all_rows_matched.len();
+            }
+
+            if monster_count > 0 {
+                break;
+            } else {
+                monster_count = 0;
+                monster_coords.clear();
+            }
+        }
+
+        MonsterReport {
+            monster_count,
+            monster_coords: HashSet::from_iter(monster_coords.into_iter()),
+            stitched_map: stitched_together_image,
+        }
+    }
+}
+
+struct MonsterReport {
+    monster_count: usize,
+    monster_coords: HashSet<(usize, usize)>,
+    stitched_map: StitchedTogetherImage,
+}
+
+impl fmt::Display for MonsterReport {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Monster Report")?;
+        writeln!(f, "****************")?;
+        writeln!(f, "Monsters count: {}", self.monster_count)?;
+        writeln!(f, "Map:")?;
+        for (row_idx, row) in self.stitched_map.0.iter().enumerate() {
+            for (col_idx, pixel) in row.iter().enumerate() {
+                if self.monster_coords.contains(&(row_idx, col_idx)) {
+                    write!(f, "O")?
+                } else {
+                    match *pixel {
+                        Pixel::On => write!(f, "#")?,
+                        Pixel::Off => write!(f, ".")?,
+                    }
+                }
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 
@@ -671,6 +860,52 @@ mod tests {
             stitched_together == expected
         });
         assert!(can_be_manipulated_into_expected)
+    }
+
+    #[test]
+    fn count_monsters_in_test() {
+        let mut overall_image = parse(TEST_INPUT).unwrap();
+        overall_image.solve().unwrap();
+        let stitched_together = StitchedTogetherImage::from(overall_image).unwrap();
+        let monster_searcher = MonsterSearcher::new(MONSTER_DEF).unwrap();
+
+        let monsters_report = monster_searcher.find_monsters_and_report(stitched_together);
+        assert_eq!(2, monsters_report.monster_count);
+
+        let as_str = format!("{}", monsters_report);
+        assert!(as_str.contains(
+            ".####...#####..#...###..
+#####..#..#.#.####..#.#.
+.#.#...#.###...#.##.O#..
+#.O.##.OO#.#.OO.##.OOO##
+..#O.#O#.O##O..O.#O##.##
+...#.#..##.##...#..#..##
+#.##.#..#.#..#..##.#.#..
+.###.##.....#...###.#...
+#.####.#.#....##.#..#.#.
+##...#..#....#..#...####
+..#.##...###..#.#####..#
+....#.##.#.#####....#...
+..##.##.###.....#.##..#.
+#...#...###..####....##.
+.#.##...#.##.#.#.###...#
+#.###.#..####...##..#...
+#.###...#.##...#.##O###.
+.O##.#OO.###OO##..OOO##.
+..O#.O..O..O.#O##O##.###
+#.#..##.########..#..##.
+#.#####..#.#...##..#....
+#....##..#.#########..##
+#...#.....#..##...###.##
+#..###....##.#...##.##.#"
+        ))
+    }
+
+    #[test]
+    fn solution_2_test() {
+        let overall_image = parse(TEST_INPUT).unwrap();
+
+        assert_eq!(273, solution_2(overall_image).unwrap());
     }
 
     const TEST_INPUT: &str = "Tile 2311:
