@@ -5,6 +5,12 @@ use anyhow::{Context, Result};
 use combine::lib::collections::HashSet;
 use Manipulate::*;
 
+use combine::easy;
+use combine::parser::char::*;
+use combine::*;
+use std::num::ParseIntError;
+use std::result::Result as StdResult;
+
 /// The complete cycle of matrix manipulations that cover all unique transformations
 static MATRIX_MANIPULATIONS: [Manipulate; 8] = [
     RotateRight,
@@ -19,6 +25,79 @@ static MATRIX_MANIPULATIONS: [Manipulate; 8] = [
 
 type Coords = (i64, i64); // (x, y)
 
+fn parse(s: &str) -> StdResult<OverallImage, easy::ParseError<&str>> {
+    let tile_idx_to_image =
+        s.trim()
+            .split("\n\n")
+            .try_fold(HashMap::new(), |mut acc, tile_str| {
+                let mut idx_with_image_tile_parser = tile_with_idx_parser();
+                let ((idx, image), _) = idx_with_image_tile_parser.easy_parse(tile_str)?;
+                acc.insert(idx, image);
+
+                Ok(acc)
+            })?;
+    Ok(OverallImage {
+        tiles: tile_idx_to_image,
+        coords_to_tile_idx: HashMap::new(),
+    })
+}
+
+fn tile_with_idx_parser<Input>() -> impl Parser<Input, Output = (usize, ImageTile)>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <Input as combine::StreamOnce>::Error: combine::ParseError<
+        char,
+        <Input as combine::StreamOnce>::Range,
+        <Input as combine::StreamOnce>::Position,
+    >,
+{
+    let tile_idx_parser = string("Tile ").with(number()).skip(char(':'));
+    let pixel_parser = char('#')
+        .map(|_| Pixel::On)
+        .or(char('.').map(|_| Pixel::Off));
+    let row_parser = many(pixel_parser);
+    let matrix_parser = sep_by1(row_parser, newline()).map(|vec: Vec<Vec<Pixel>>| ImageTile {
+        image: MonochromeSquare(vec),
+        coords: None,
+        neighbours_indices: None,
+    });
+    tile_idx_parser.skip(newline()).and(matrix_parser)
+}
+
+fn number<Input>() -> impl Parser<Input, Output = usize>
+where
+    Input: Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <<Input as StreamOnce>::Error as combine::ParseError<
+        char,
+        <Input as StreamOnce>::Range,
+        <Input as StreamOnce>::Position,
+    >>::StreamError: From<ParseIntError>,
+    <Input as combine::StreamOnce>::Error: combine::ParseError<
+        char,
+        <Input as combine::StreamOnce>::Range,
+        <Input as combine::StreamOnce>::Position,
+    >,
+{
+    many::<String, _, _>(digit()).and_then(|d| d.parse::<usize>())
+}
+
 struct OverallImage {
     tiles: HashMap<usize, ImageTile>,
 
@@ -26,6 +105,16 @@ struct OverallImage {
 }
 
 impl OverallImage {
+    fn corner_tiles(&self) -> impl Iterator<Item = (&usize, &ImageTile)> {
+        self.tiles.iter().filter(|(_, tile)| {
+            if let Some(neighbours) = &tile.neighbours_indices {
+                neighbours.len() == 2
+            } else {
+                false
+            }
+        })
+    }
+
     fn solve(&mut self) -> Result<()> {
         if self.tiles.len() == self.coords_to_tile_idx.len() {
             ()
@@ -304,4 +393,125 @@ mod tests {
         ];
         assert_eq!(expected, square)
     }
+
+    #[test]
+    fn parse_test() {
+        let r = parse(TEST_INPUT).unwrap();
+        assert_eq!(9, r.tiles.len());
+
+        for (_, tile) in r.tiles {
+            assert_eq!(10, tile.image.0.len());
+            for row in tile.image.0 {
+                assert_eq!(10, row.len())
+            }
+        }
+    }
+
+    const TEST_INPUT: &str = "Tile 2311:
+..##.#..#.
+##..#.....
+#...##..#.
+####.#...#
+##.##.###.
+##...#.###
+.#.#.#..##
+..#....#..
+###...#.#.
+..###..###
+
+Tile 1951:
+#.##...##.
+#.####...#
+.....#..##
+#...######
+.##.#....#
+.###.#####
+###.##.##.
+.###....#.
+..#.#..#.#
+#...##.#..
+
+Tile 1171:
+####...##.
+#..##.#..#
+##.#..#.#.
+.###.####.
+..###.####
+.##....##.
+.#...####.
+#.##.####.
+####..#...
+.....##...
+
+Tile 1427:
+###.##.#..
+.#..#.##..
+.#.##.#..#
+#.#.#.##.#
+....#...##
+...##..##.
+...#.#####
+.#.####.#.
+..#..###.#
+..##.#..#.
+
+Tile 1489:
+##.#.#....
+..##...#..
+.##..##...
+..#...#...
+#####...#.
+#..#.#.#.#
+...#.#.#..
+##.#...##.
+..##.##.##
+###.##.#..
+
+Tile 2473:
+#....####.
+#..#.##...
+#.##..#...
+######.#.#
+.#...#.#.#
+.#########
+.###.#..#.
+########.#
+##...##.#.
+..###.#.#.
+
+Tile 2971:
+..#.#....#
+#...###...
+#.#.###...
+##.##..#..
+.#####..##
+.#..####.#
+#..#.#..#.
+..####.###
+..#.#.###.
+...#.#.#.#
+
+Tile 2729:
+...#.#.#.#
+####.#....
+..#.#.....
+....#..#.#
+.##..##.#.
+.#.####...
+####.#.#..
+##.####...
+##..#.##..
+#.##...##.
+
+Tile 3079:
+#.#.#####.
+.#..######
+..#.......
+######....
+####.#..#.
+.#...#.##.
+#.#####.##
+..#.###...
+..#.......
+..#.###...";
 }
